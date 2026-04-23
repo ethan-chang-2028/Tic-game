@@ -1,3 +1,4 @@
+run = "npm start"
 modules = ["nodejs-24"]
 
 [deployment]

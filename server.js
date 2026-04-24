@@ -1,17 +1,20 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// server.js
+const express = require('express');
+const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-app.use(express.json());
+// Use Replit's default port or 8080 as a fallback
+const PORT = process.env.PORT || 8080;
+
+// Tell Express to serve all static files (HTML, CSS, JS) from the 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+// Set up your main route to send the index.html file
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server is running and listening on port ${PORT}`);
 });

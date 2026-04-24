@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 8080;
 
 // Middleware to parse incoming JSON and form data
 app.use(express.json());
@@ -80,6 +80,6 @@ app.post('/logout', (req, res) => {
     res.json({ message: 'Logged out successfully!' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });

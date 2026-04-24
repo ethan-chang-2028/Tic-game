@@ -53,3 +53,24 @@ function showGame(username) {
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').innerText = `Welcome, ${username}!`;
 }
+document.addEventListener("DOMContentLoaded", () => {
+    const cells = document.querySelectorAll(".cell");
+    const turnIndicator = document.getElementById("turn-indicator");
+    let currentPlayer = "X";
+
+    cells.forEach(cell => {
+        cell.addEventListener("click", (e) => {
+            // Prevent overwriting a cell that has already been clicked
+            if (e.target.innerText !== "") return;
+
+            // Draw the X or O in the cell
+            e.target.innerText = currentPlayer;
+
+            // Switch the active player
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+
+            // Update the turn indicator text at the top
+            turnIndicator.innerText = `Player ${currentPlayer}'s Turn`;
+        });
+    });
+});

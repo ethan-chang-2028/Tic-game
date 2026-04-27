@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
 // Middleware to parse incoming JSON and form data
 app.use(express.json());
@@ -15,7 +15,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Set up express-session
 app.use(session({
-    secret: 'tic-tac-toe-secret-key', // In production, this goes in .env!
+    secret: 'tic-tac-toe-secret-key',
     resave: false,
     saveUninitialized: false
 }));
@@ -25,7 +25,6 @@ const usersFilePath = path.join(__dirname, 'data', 'users.json');
 
 // Helper function to read users
 function getUsers() {
-    // If the file doesn't exist yet, return an empty array
     if (!fs.existsSync(usersFilePath)) {
         return [];
     }
@@ -35,23 +34,29 @@ function getUsers() {
 
 // Helper function to save users
 function saveUsers(users) {
-    // Writes the array back to data/users.json cleanly formatted
     fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
 }
 
 // --- ACCOUNTS ROUTES ---
 
+// 0. Check current session (called by main.js on page load)
+app.get('/api/me', (req, res) => {
+    if (req.session.username) {
+        res.json({ username: req.session.username });
+    } else {
+        res.status(401).json({ error: 'Not logged in.' });
+    }
+});
+
 // 1. Register
-app.post('/register', (req, res) => {
+app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     const users = getUsers();
 
-    // Check if user already exists
     if (users.find(u => u.username === username)) {
         return res.status(400).json({ error: 'Username already exists!' });
     }
 
-    // Save plaintext password for learning purposes
     users.push({ username, password });
     saveUsers(users);
 
@@ -59,23 +64,22 @@ app.post('/register', (req, res) => {
 });
 
 // 2. Login
-app.post('/login', (req, res) => {
+app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const users = getUsers();
 
-    // Find a matching username and password
     const user = users.find(u => u.username === username && u.password === password);
 
     if (user) {
-        req.session.username = username; // Save user to session
-        res.json({ message: 'Logged in successfully!' });
+        req.session.username = username;
+        res.json({ message: 'Logged in successfully!', username });
     } else {
         res.status(401).json({ error: 'Invalid username or password.' });
     }
 });
 
 // 3. Logout
-app.post('/logout', (req, res) => {
+app.post('/api/logout', (req, res) => {
     req.session.destroy();
     res.json({ message: 'Logged out successfully!' });
 });

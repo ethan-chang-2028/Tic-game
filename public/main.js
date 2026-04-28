@@ -1,4 +1,4 @@
-// Game state
+// ── Game state ──────────────────────────────────────────────
 let currentPlayer = 'X';
 let board = ['', '', '', '', '', '', '', '', ''];
 let gameOver = false;
@@ -9,52 +9,21 @@ const WIN_COMBOS = [
     [0, 4, 8], [2, 4, 6]              // diagonals
 ];
 
-// Check if current board state has a winner
+// ── Win / draw detection ─────────────────────────────────────
 function checkWinner() {
     for (const [a, b, c] of WIN_COMBOS) {
         if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            return board[a]; // returns 'X' or 'O'
+            return board[a]; // 'X' or 'O'
         }
     }
     return null;
 }
 
-// Check if board is full (draw)
 function checkDraw() {
     return board.every(cell => cell !== '');
 }
 
-// Handle a cell click
-function handleCellClick(e) {
-    const index = parseInt(e.target.getAttribute('data-index'));
-
-    // Ignore click if cell already filled or game is over
-    if (board[index] !== '' || gameOver) return;
-
-    // Place the mark
-    board[index] = currentPlayer;
-    e.target.textContent = currentPlayer;
-    e.target.classList.add('taken');
-
-    const winner = checkWinner();
-
-    if (winner) {
-        gameOver = true;
-        document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = `Player ${winner} wins! 🎉`;
-        highlightWinner();
-    } else if (checkDraw()) {
-        gameOver = true;
-        document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = "It's a draw! 🤝";
-    } else {
-        // Switch player
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent = `Player ${currentPlayer}'s Turn`;
-    }
-}
-
-// Highlight the winning cells
+// ── Highlight the winning cells green ────────────────────────
 function highlightWinner() {
     for (const [a, b, c] of WIN_COMBOS) {
         if (board[a] && board[a] === board[b] && board[a] === board[c]) {
@@ -67,14 +36,114 @@ function highlightWinner() {
     }
 }
 
-// Reset the game board
+// ── Save a finished game to the server ───────────────────────
+async function saveGame(winner, result) {
+    try {
+        const response = await fetch('/api/games', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ winner, result, board })
+        });
+
+        if (response.ok) {
+            // Refresh the history panel so the new game shows up immediately
+            loadHistory();
+        } else {
+            console.warn('Game not saved (not logged in?)');
+        }
+    } catch (err) {
+        console.error('Error saving game:', err);
+    }
+}
+
+// ── Load and display game history ────────────────────────────
+async function loadHistory() {
+    const historyList = document.getElementById('history-list');
+    if (!historyList) return;
+
+    try {
+        const response = await fetch('/api/games');
+
+        if (!response.ok) {
+            historyList.innerHTML = '<p>Log in to see your history.</p>';
+            return;
+        }
+
+        const games = await response.json();
+
+        if (games.length === 0) {
+            historyList.innerHTML = '<p>No games played yet.</p>';
+            return;
+        }
+
+        // Build a small card for each past game
+        historyList.innerHTML = games.map(game => {
+            const date = new Date(game.playedAt).toLocaleString();
+            const resultText = game.result === 'draw'
+                ? "Draw 🤝"
+                : `${game.winner} wins 🎉`;
+
+            // Render the mini board
+            const cells = game.board.map(cell =>
+                `<span class="mini-cell">${cell}</span>`
+            ).join('');
+
+            return `
+                <div class="history-card">
+                    <div class="history-meta">
+                        <span class="history-result">${resultText}</span>
+                        <span class="history-date">${date}</span>
+                    </div>
+                    <div class="mini-board">${cells}</div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        historyList.innerHTML = '<p>Could not load history.</p>';
+        console.error(err);
+    }
+}
+
+// ── Cell click handler ────────────────────────────────────────
+function handleCellClick(e) {
+    const index = parseInt(e.target.getAttribute('data-index'));
+
+    if (board[index] !== '' || gameOver) return;
+
+    board[index] = currentPlayer;
+    e.target.textContent = currentPlayer;
+    e.target.classList.add('taken');
+
+    const winner = checkWinner();
+
+    if (winner) {
+        gameOver = true;
+        document.getElementById('turn-indicator').textContent = '';
+        document.getElementById('game-status').textContent = `Player ${winner} wins! 🎉`;
+        highlightWinner();
+        saveGame(winner, `${winner} wins`);
+
+    } else if (checkDraw()) {
+        gameOver = true;
+        document.getElementById('turn-indicator').textContent = '';
+        document.getElementById('game-status').textContent = "It's a draw! 🤝";
+        saveGame(null, 'draw');
+
+    } else {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        document.getElementById('turn-indicator').textContent =
+            `Player ${currentPlayer}'s Turn`;
+    }
+}
+
+// ── Reset the board ───────────────────────────────────────────
 function resetGame() {
     board = ['', '', '', '', '', '', '', '', ''];
     currentPlayer = 'X';
     gameOver = false;
 
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach(cell => {
+    document.querySelectorAll('.cell').forEach(cell => {
         cell.textContent = '';
         cell.classList.remove('taken', 'winner');
     });
@@ -83,23 +152,22 @@ function resetGame() {
     document.getElementById('game-status').textContent = '';
 }
 
-// Attach click handlers to all cells
+// ── Attach click listeners to every cell ─────────────────────
 function initBoard() {
-    const cells = document.querySelectorAll('.cell');
-    cells.forEach(cell => {
+    document.querySelectorAll('.cell').forEach(cell => {
         cell.addEventListener('click', handleCellClick);
     });
 }
 
-// --- AUTH ---
-
+// ── Auth ──────────────────────────────────────────────────────
 window.onload = async () => {
+    initBoard();
+
     const response = await fetch('/api/me');
     if (response.ok) {
         const data = await response.json();
         showGame(data.username);
     }
-    initBoard();
 };
 
 async function register() {
@@ -148,4 +216,5 @@ function showGame(username) {
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
+    loadHistory(); // load history whenever someone logs in
 }

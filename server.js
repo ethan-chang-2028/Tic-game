@@ -17,18 +17,29 @@ app.use(session({
 }));
 
 const usersFilePath = path.join(__dirname, 'data', 'users.json');
+const gamesFilePath = path.join(__dirname, 'data', 'games.json');
 
 function getUsers() {
     if (!fs.existsSync(usersFilePath)) return [];
-    const data = fs.readFileSync(usersFilePath, 'utf8');
-    return JSON.parse(data);
+    return JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
 }
 
 function saveUsers(users) {
     fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
 }
 
-// --- ACCOUNTS ROUTES ---
+function getGames() {
+    if (!fs.existsSync(gamesFilePath)) return [];
+    return JSON.parse(fs.readFileSync(gamesFilePath, 'utf8'));
+}
+
+function saveGames(games) {
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+    fs.writeFileSync(gamesFilePath, JSON.stringify(games, null, 2));
+}
+
+// --- AUTH ROUTES ---
 
 app.get('/api/me', (req, res) => {
     if (req.session.username) {
@@ -68,6 +79,51 @@ app.post('/api/login', (req, res) => {
 app.post('/api/logout', (req, res) => {
     req.session.destroy();
     res.json({ message: 'Logged out successfully!' });
+});
+
+// --- GAME ROUTES ---
+
+// Save a finished game
+app.post('/api/games', (req, res) => {
+    if (!req.session.username) {
+        return res.status(401).json({ error: 'Must be logged in to save a game.' });
+    }
+
+    const { winner, result, board } = req.body;
+
+    if (!result || !board) {
+        return res.status(400).json({ error: 'Missing required game data.' });
+    }
+
+    const games = getGames();
+
+    const newGame = {
+        id: Date.now(),
+        playedBy: req.session.username,
+        winner: winner || null,   // 'X', 'O', or null for draw
+        result: result,           // 'X wins', 'O wins', or 'draw'
+        board: board,             // final board array of 9 cells
+        playedAt: new Date().toISOString()
+    };
+
+    games.push(newGame);
+    saveGames(games);
+
+    res.status(201).json({ message: 'Game saved!', game: newGame });
+});
+
+// Get game history for the logged-in user
+app.get('/api/games', (req, res) => {
+    if (!req.session.username) {
+        return res.status(401).json({ error: 'Must be logged in to view history.' });
+    }
+
+    const games = getGames();
+    const userGames = games
+        .filter(g => g.playedBy === req.session.username)
+        .reverse(); // most recent first
+
+    res.json(userGames);
 });
 
 app.listen(PORT, '0.0.0.0', () => {

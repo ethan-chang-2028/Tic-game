@@ -1,10 +1,105 @@
-// Check if user is already logged in when the page loads
+// Game state
+let currentPlayer = 'X';
+let board = ['', '', '', '', '', '', '', '', ''];
+let gameOver = false;
+
+const WIN_COMBOS = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+    [0, 4, 8], [2, 4, 6]              // diagonals
+];
+
+// Check if current board state has a winner
+function checkWinner() {
+    for (const [a, b, c] of WIN_COMBOS) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a]; // returns 'X' or 'O'
+        }
+    }
+    return null;
+}
+
+// Check if board is full (draw)
+function checkDraw() {
+    return board.every(cell => cell !== '');
+}
+
+// Handle a cell click
+function handleCellClick(e) {
+    const index = parseInt(e.target.getAttribute('data-index'));
+
+    // Ignore click if cell already filled or game is over
+    if (board[index] !== '' || gameOver) return;
+
+    // Place the mark
+    board[index] = currentPlayer;
+    e.target.textContent = currentPlayer;
+    e.target.classList.add('taken');
+
+    const winner = checkWinner();
+
+    if (winner) {
+        gameOver = true;
+        document.getElementById('turn-indicator').textContent = '';
+        document.getElementById('game-status').textContent = `Player ${winner} wins! 🎉`;
+        highlightWinner();
+    } else if (checkDraw()) {
+        gameOver = true;
+        document.getElementById('turn-indicator').textContent = '';
+        document.getElementById('game-status').textContent = "It's a draw! 🤝";
+    } else {
+        // Switch player
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        document.getElementById('turn-indicator').textContent = `Player ${currentPlayer}'s Turn`;
+    }
+}
+
+// Highlight the winning cells
+function highlightWinner() {
+    for (const [a, b, c] of WIN_COMBOS) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            const cells = document.querySelectorAll('.cell');
+            cells[a].classList.add('winner');
+            cells[b].classList.add('winner');
+            cells[c].classList.add('winner');
+            break;
+        }
+    }
+}
+
+// Reset the game board
+function resetGame() {
+    board = ['', '', '', '', '', '', '', '', ''];
+    currentPlayer = 'X';
+    gameOver = false;
+
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('taken', 'winner');
+    });
+
+    document.getElementById('turn-indicator').textContent = "Player X's Turn";
+    document.getElementById('game-status').textContent = '';
+}
+
+// Attach click handlers to all cells
+function initBoard() {
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach(cell => {
+        cell.addEventListener('click', handleCellClick);
+    });
+}
+
+// --- AUTH ---
+
 window.onload = async () => {
     const response = await fetch('/api/me');
     if (response.ok) {
         const data = await response.json();
         showGame(data.username);
     }
+    initBoard();
 };
 
 async function register() {
@@ -18,7 +113,7 @@ async function register() {
     });
 
     const data = await response.json();
-    document.getElementById('auth-message').innerText = data.error || data.message;
+    document.getElementById('auth-message').textContent = data.error || data.message;
 }
 
 async function login() {
@@ -35,7 +130,7 @@ async function login() {
     if (response.ok) {
         showGame(data.username);
     } else {
-        document.getElementById('auth-message').innerText = data.error;
+        document.getElementById('auth-message').textContent = data.error;
     }
 }
 
@@ -45,100 +140,12 @@ async function logout() {
     document.getElementById('auth-section').style.display = 'block';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
-    document.getElementById('auth-message').innerText = 'Logged out.';
+    document.getElementById('auth-message').textContent = 'Logged out.';
     resetGame();
 }
 
 function showGame(username) {
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('game-section').style.display = 'block';
-    document.getElementById('welcome-message').innerText = `Welcome, ${username}!`;
+    document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
 }
-
-// --- Game Logic ---
-
-const WIN_COMBOS = [
-    [0, 1, 2], // top row
-    [3, 4, 5], // middle row
-    [6, 7, 8], // bottom row
-    [0, 3, 6], // left column
-    [1, 4, 7], // middle column
-    [2, 5, 8], // right column
-    [0, 4, 8], // diagonal
-    [2, 4, 6], // diagonal
-];
-
-let currentPlayer = 'X';
-let gameOver = false;
-let board = ['', '', '', '', '', '', '', '', ''];
-
-function checkWinner() {
-    for (const combo of WIN_COMBOS) {
-        const [a, b, c] = combo;
-        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            return { winner: board[a], combo };
-        }
-    }
-    return null;
-}
-
-function checkDraw() {
-    return board.every(cell => cell !== '');
-}
-
-function highlightWinner(combo) {
-    combo.forEach(index => {
-        document.querySelectorAll('.cell')[index].classList.add('winner');
-    });
-}
-
-function resetGame() {
-    currentPlayer = 'X';
-    gameOver = false;
-    board = ['', '', '', '', '', '', '', '', ''];
-
-    document.querySelectorAll('.cell').forEach(cell => {
-        cell.innerText = '';
-        cell.classList.remove('winner');
-    });
-
-    document.getElementById('turn-indicator').innerText = "Player X's Turn";
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const cells = document.querySelectorAll('.cell');
-    const turnIndicator = document.getElementById('turn-indicator');
-
-    cells.forEach(cell => {
-        cell.addEventListener('click', (e) => {
-            const index = e.target.dataset.index;
-
-            // Ignore click if cell is taken or game is over
-            if (e.target.innerText !== '' || gameOver) return;
-
-            // Place the mark
-            e.target.innerText = currentPlayer;
-            board[index] = currentPlayer;
-
-            // Check for a winner
-            const result = checkWinner();
-            if (result) {
-                turnIndicator.innerText = `Player ${result.winner} wins! 🎉`;
-                highlightWinner(result.combo);
-                gameOver = true;
-                return;
-            }
-
-            // Check for a draw
-            if (checkDraw()) {
-                turnIndicator.innerText = "It's a draw! 🤝";
-                gameOver = true;
-                return;
-            }
-
-            // Switch turns
-            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-            turnIndicator.innerText = `Player ${currentPlayer}'s Turn`;
-        });
-    });
-});

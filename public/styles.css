@@ -1,37 +1,69 @@
 body {
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 50px;
+  font-family: sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 50px;
 }
 
 .board {
-    display: grid;
-    grid-template-columns: repeat(3, 100px);
-    grid-template-rows: repeat(3, 100px);
-    gap: 5px;
-    margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 100px);
+  grid-template-rows: repeat(3, 100px);
+  gap: 5px;
+  margin-top: 20px;
 }
 
 .cell {
-    width: 100px;
-    height: 100px;
-    background-color: #f0f0f0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 3rem;
-    cursor: pointer;
-    border: 2px solid #ccc;
+  width: 100px;
+  height: 100px;
+  background-color: #f0f0f0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 3rem;
+  cursor: pointer;
+  border: 2px solid #ccc;
+  transition: background-color 0.15s;
 }
 
-.cell:hover {
-    background-color: #e0e0e0;
+.cell:hover:not(.taken) {
+  background-color: #e0e0e0;
 }
 
-/* Highlight the winning three cells */
+.cell.taken {
+  cursor: default;
+}
+
+/* Highlight winning cells */
 .cell.winner {
-    background-color: #90ee90;
-    border-color: #2e8b2e;
+  background-color: #90ee90;
+  border-color: #2e7d32;
+}
+
+#turn-indicator {
+  font-size: 1.2rem;
+  margin-top: 16px;
+}
+
+#game-status {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #2e7d32;
+  margin-top: 8px;
+  min-height: 2rem;
+}
+
+#reset-btn {
+  padding: 10px 24px;
+  font-size: 1rem;
+  cursor: pointer;
+  background: #333;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+#reset-btn:hover {
+  background: #555;
 }

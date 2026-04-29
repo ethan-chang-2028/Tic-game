@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1777485503176,
+    "playedBy": "1",
+    "winner": "X",
+    "result": "X wins",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "O",
+      "X",
+      "O",
+      "X",
+      "X",
+      "O"
+    ],
+    "playedAt": "2026-04-29T17:58:23.176Z"
+  },
+  {
+    "id": 1777485519522,
+    "playedBy": "1",
+    "winner": "X",
+    "result": "X wins",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "O",
+      "X",
+      "O",
+      "X",
+      "",
+      ""
+    ],
+    "playedAt": "2026-04-29T17:58:39.522Z"
+  },
+  {
+    "id": 1777485532068,
+    "playedBy": "1",
+    "winner": "X",
+    "result": "X wins",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "",
+      "X",
+      "X",
+      "O",
+      "",
+      "X"
+    ],
+    "playedAt": "2026-04-29T17:58:52.068Z"
+  },
+  {
+    "id": 1777485540022,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "playedAt": "2026-04-29T17:59:00.022Z"
+  }
+]

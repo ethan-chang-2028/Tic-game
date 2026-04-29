@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -25,9 +25,10 @@ function getUsers() {
 }
 
 function saveUsers(users) {
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir); // This line prevents the crash!
     fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
 }
-
 function getGames() {
     if (!fs.existsSync(gamesFilePath)) return [];
     return JSON.parse(fs.readFileSync(gamesFilePath, 'utf8'));

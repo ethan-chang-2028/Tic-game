@@ -19,6 +19,15 @@ app.use(session({
 const usersFilePath = path.join(__dirname, 'data', 'users.json');
 const gamesFilePath = path.join(__dirname, 'data', 'games.json');
 
+// Initialize JSON files if they don't exist
+const initDataFiles = () => {
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+    if (!fs.existsSync(usersFilePath)) fs.writeFileSync(usersFilePath, '[]');
+    if (!fs.existsSync(gamesFilePath)) fs.writeFileSync(gamesFilePath, '[]');
+};
+initDataFiles();
+
 function getUsers() {
     if (!fs.existsSync(usersFilePath)) return [];
     return JSON.parse(fs.readFileSync(usersFilePath, 'utf8'));
@@ -26,9 +35,10 @@ function getUsers() {
 
 function saveUsers(users) {
     const dataDir = path.join(__dirname, 'data');
-    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir); // This line prevents the crash!
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
     fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
 }
+
 function getGames() {
     if (!fs.existsSync(gamesFilePath)) return [];
     return JSON.parse(fs.readFileSync(gamesFilePath, 'utf8'));
@@ -101,9 +111,9 @@ app.post('/api/games', (req, res) => {
     const newGame = {
         id: Date.now(),
         playedBy: req.session.username,
-        winner: winner || null,   // 'X', 'O', or null for draw
-        result: result,           // 'X wins', 'O wins', or 'draw'
-        board: board,             // final board array of 9 cells
+        winner: winner || null,
+        result: result,
+        board: board,
         playedAt: new Date().toISOString()
     };
 
@@ -125,6 +135,19 @@ app.get('/api/games', (req, res) => {
         .reverse(); // most recent first
 
     res.json(userGames);
+});
+
+// Clear game history for the logged-in user
+app.delete('/api/games', (req, res) => {
+    if (!req.session.username) {
+        return res.status(401).json({ error: 'Must be logged in to clear history.' });
+    }
+
+    let games = getGames();
+    games = games.filter(g => g.playedBy !== req.session.username);
+    saveGames(games);
+
+    res.json({ message: 'History cleared!' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

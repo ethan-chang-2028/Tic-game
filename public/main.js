@@ -83,9 +83,9 @@ async function loadHistory() {
                 ? "Draw 🤝"
                 : `${game.winner} wins 🎉`;
 
-            // Render the mini board
-            const cells = game.board.map(cell =>
-                `<span class="mini-cell">${cell}</span>`
+            // Render the mini board with proper styling
+            const cells = game.board.map((cell, i) =>
+                `<span class="mini-cell" data-index="${i}">${cell}</span>`
             ).join('');
 
             return `
@@ -102,6 +102,23 @@ async function loadHistory() {
     } catch (err) {
         historyList.innerHTML = '<p>Could not load history.</p>';
         console.error(err);
+    }
+}
+
+// ── Clear game history for the logged-in user ──────────────
+async function clearHistory() {
+    if (!confirm('Are you sure you want to clear your game history?')) return;
+
+    try {
+        const response = await fetch('/api/games', { method: 'DELETE' });
+        if (response.ok) {
+            loadHistory();
+            alert('History cleared!');
+        } else {
+            alert('Failed to clear history.');
+        }
+    } catch (err) {
+        console.error('Error clearing history:', err);
     }
 }
 

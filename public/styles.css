@@ -1,9 +1,80 @@
 body {
-  font-family: sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
   margin-top: 50px;
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+/* ── Auth Section Styling ── */
+#auth-section {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  width: 320px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+#auth-section h2 {
+  margin-bottom: 20px;
+  color: #2c3e50;
+  font-size: 1.5rem;
+}
+
+#auth-section input {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+#auth-section input:focus {
+  outline: none;
+  border-color: #3498db;
+  box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+}
+
+#auth-section button {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+#auth-section button:nth-of-type(1) {
+  background-color: #2ecc71;
+  color: white;
+}
+
+#auth-section button:nth-of-type(1):hover {
+  background-color: #27ae60;
+}
+
+#auth-section button:nth-of-type(2) {
+  background-color: #3498db;
+  color: white;
+}
+
+#auth-section button:nth-of-type(2):hover {
+  background-color: #2980b9;
+}
+
+#auth-message {
+  margin-top: 15px;
+  color: #e74c3c;
+  font-size: 0.9rem;
+  min-height: 1.2rem;
 }
 
 /* ── Board ── */
@@ -87,22 +158,26 @@ body {
   background: #d32f2f;
 }
 
-/* ── Game Mode Selector ── */
-#game-mode-section {
+/* ── Game Mode, Difficulty, and Personality Selectors ── */
+#game-mode-section, #difficulty-section, #personality-section {
   margin-top: 10px;
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-#game-mode-section label {
-  margin-right: 10px;
+#game-mode-section label, #difficulty-section label, #personality-section label {
   font-size: 1rem;
+  font-weight: 500;
 }
 
-#game-mode-section select {
-  padding: 5px;
+#game-mode-section select, #difficulty-section select, #personality-section select {
+  padding: 8px 12px;
   font-size: 1rem;
-  border-radius: 4px;
+  border-radius: 5px;
   border: 1px solid #ccc;
+  background-color: white;
 }
 
 /* ── History section ── */
@@ -141,6 +216,12 @@ body {
 .history-date {
   font-size: 0.75rem;
   color: #888;
+}
+
+.game-meta {
+  font-size: 0.8rem;
+  color: #555;
+  margin-bottom: 5px;
 }
 
 /* ── Mini board inside history card ── */

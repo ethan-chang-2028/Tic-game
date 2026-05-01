@@ -274,10 +274,20 @@ async function clearHistory() {
     }
 }
 
-// ── Set game mode (PvP or AI) ──────────────────────────────
-function setGameMode() {
+// ── Toggle AI settings visibility ────────────────────────────
+function toggleAISettings() {
     const modeSelect = document.getElementById('game-mode');
     gameMode = modeSelect.value;
+    const difficultySection = document.getElementById('difficulty-section');
+    const personalitySection = document.getElementById('personality-section');
+
+    if (gameMode === 'ai') {
+        difficultySection.style.display = 'flex';
+        personalitySection.style.display = 'flex';
+    } else {
+        difficultySection.style.display = 'none';
+        personalitySection.style.display = 'none';
+    }
     resetGame();
 }
 
@@ -404,4 +414,6 @@ function showGame(username) {
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
     loadHistory();
+    // Ensure AI settings are hidden by default if PvP is selected
+    toggleAISettings();
 }

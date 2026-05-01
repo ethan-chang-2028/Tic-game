@@ -24,6 +24,14 @@
         <h2 id="welcome-message"></h2>
         <button onclick="logout()">Log Out</button>
 
+        <div id="game-mode-section">
+            <label for="game-mode">Game Mode:</label>
+            <select id="game-mode" onchange="setGameMode()">
+                <option value="pvp">Player vs Player</option>
+                <option value="ai">Player vs AI</option>
+            </select>
+        </div>
+
         <p id="turn-indicator">Player X's Turn</p>
         <p id="game-status"></p>
 
@@ -44,6 +52,7 @@
         <!-- HISTORY -->
         <section id="history-section">
             <h3>Your Game History</h3>
+            <button id="clear-history-btn" onclick="clearHistory()">Clear History</button>
             <div id="history-list">
                 <p>No games played yet.</p>
             </div>

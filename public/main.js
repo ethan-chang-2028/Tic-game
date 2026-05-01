@@ -39,39 +39,51 @@ function highlightWinner() {
     }
 }
 
-// ── AI Personalities ────────────────────────────────────────
+// ── AI Personalities with Varied Responses ────────────────────
 const personalities = {
     neutral: {
-        win: " wins! 🎉",
-        lose: "You got me this time...",
-        draw: "It's a draw! 🤝",
-        thinking: "AI is thinking...",
-        turn: "Your Turn"
+        win: [" wins! 🎉", " wins! Good game!", " wins! Try again!", " wins! You'll get it next time!"],
+        lose: ["You got me this time...", "Nice move!", "Well played!", "I'll get you next time!"],
+        draw: ["It's a draw! 🤝", "A tie! Close game!", "Draw! Want a rematch?", "No winner this time!"],
+        thinking: ["AI is thinking...", "Calculating...", "Making a move...", "Processing..."],
+        turn: ["Your Turn", "Your move", "Go ahead", "Make your move"]
     },
     mathematician: {
-        win: " wins by the power of logic! ∫√∑",
-        lose: "Your strategy was... unexpected. Recalculating...",
-        draw: "A perfect equilibrium! 1-1=0",
-        thinking: "Calculating optimal move...",
-        turn: "Your move, human."
+        win: [" wins by the power of logic! ∫√∑", " wins! The numbers don't lie.", " wins! A calculated victory.", " wins! x + y = victory!"],
+        lose: ["Your strategy was... unexpected. Recalculating...", "An anomaly in the data!", "I need to recalibrate my algorithms.", "That was statistically unlikely!"],
+        draw: ["A perfect equilibrium! 1-1=0", "The game is in balance.", "A draw! The math checks out.", "Symmetry achieved!"],
+        thinking: ["Calculating optimal move...", "Running simulations...", "Solving the equation...", "Analyzing probabilities..."],
+        turn: ["Your move, human.", "Input your coordinates.", "What's your next variable?", "Your turn to solve."]
     },
     psychologist: {
-        win: " wins! I knew you'd pick that spot. 😉",
-        lose: "Interesting... you outsmarted me. Let's analyze that.",
-        draw: "A stalemate. Your subconscious is strong.",
-        thinking: "Analyzing your patterns...",
-        turn: "What's your next move?"
+        win: [" wins! I knew you'd pick that spot. 😉", " wins! Your patterns are predictable.", " wins! I'm inside your head.", " wins! Did you see that coming?"],
+        lose: ["Interesting... you outsmarted me. Let's analyze that.", "Fascinating choice! Tell me more.", "Your subconscious led you well.", "I didn't expect that. Well done!"],
+        draw: ["A stalemate. Your subconscious is strong.", "A draw! We're equally matched.", "No winner. The mind is complex.", "A tie. What were you thinking?"],
+        thinking: ["Analyzing your patterns...", "Reading your mind...", "Predicting your next move...", "Studying your behavior..."],
+        turn: ["What's your next move?", "Show me your strategy.", "Where will you go?", "Your turn to reveal yourself."]
     }
 };
 
-function getMessage(type, winner) {
+// Helper function to get a random message from the personality arrays
+function getRandomMessage(type, winner) {
     const p = personalities[aiPersonality];
-    if (type === 'win') return winner === 'O' ? `AI${p.win}` : `Player ${winner}${p.win}`;
-    if (type === 'lose') return p.lose;
-    if (type === 'draw') return p.draw;
-    if (type === 'thinking') return p.thinking;
-    if (type === 'turn') return p.turn;
-    return '';
+    if (!p) return '';
+    
+    const messages = p[type];
+    if (!messages || messages.length === 0) return '';
+    
+    const randomIndex = Math.floor(Math.random() * messages.length);
+    let message = messages[randomIndex];
+    
+    if (type === 'win') {
+        if (winner === 'O') {
+            return `AI${message}`;
+        } else {
+            return `Player ${winner}${message}`;
+        }
+    }
+    
+    return message;
 }
 
 // ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
@@ -106,7 +118,7 @@ function minimax(board, depth, isMaximizing) {
     }
 }
 
-// ── AI Logic: Easy (Random Move) ──────────────────────────────
+// ── AI Logic: Easy (Random Move) ────
 function getRandomMove() {
     const emptyCells = board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
@@ -176,17 +188,17 @@ function makeAIMove() {
         if (winner) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = getMessage('win', winner);
+            document.getElementById('game-status').textContent = getRandomMessage('win', winner);
             highlightWinner();
             saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
         } else if (checkDraw()) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = getMessage('draw');
+            document.getElementById('game-status').textContent = getRandomMessage('draw');
             saveGame(null, 'draw');
         } else {
             currentPlayer = 'X';
-            document.getElementById('turn-indicator').textContent = getMessage('turn');
+            document.getElementById('turn-indicator').textContent = getRandomMessage('turn');
         }
     }
 }
@@ -230,7 +242,7 @@ async function loadHistory() {
         historyList.innerHTML = games.map(game => {
             const date = new Date(game.playedAt).toLocaleString();
             const resultText = game.result === 'draw'
-                ? getMessage('draw')
+                ? getRandomMessage('draw')
                 : `${game.winner} wins`;
 
             const cells = game.board.map((cell, i) =>
@@ -317,18 +329,18 @@ function handleCellClick(e) {
     if (winner) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = getMessage('win', winner);
+        document.getElementById('game-status').textContent = getRandomMessage('win', winner);
         highlightWinner();
         saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
     } else if (checkDraw()) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = getMessage('draw');
+        document.getElementById('game-status').textContent = getRandomMessage('draw');
         saveGame(null, 'draw');
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
         document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-            ? (currentPlayer === 'X' ? getMessage('turn') : getMessage('thinking'))
+            ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking'))
             : `Player ${currentPlayer}'s Turn`;
 
         if (gameMode === 'ai' && currentPlayer === 'O') {
@@ -349,7 +361,7 @@ function resetGame() {
     });
 
     document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-        ? getMessage('turn')
+        ? getRandomMessage('turn')
         : "Player X's Turn";
     document.getElementById('game-status').textContent = '';
 }
@@ -414,6 +426,5 @@ function showGame(username) {
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
     loadHistory();
-    // Ensure AI settings are hidden by default if PvP is selected
     toggleAISettings();
 }

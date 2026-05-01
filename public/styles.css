@@ -77,6 +77,39 @@ body {
   min-height: 1.2rem;
 }
 
+/* ── CP07 Levels Container ── */
+#CP07-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  width: 100%;
+  align-items: center;
+}
+
+/* ── Game Mode, Difficulty, and Personality Selectors ── */
+#game-mode-section, #difficulty-section, #personality-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+#game-mode-section label, #difficulty-section label, #personality-section label {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+#game-mode-section select, #difficulty-section select, #personality-section select {
+  padding: 8px 12px;
+  font-size: 1rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  background-color: white;
+}
+
 /* ── Board ── */
 .board {
   display: grid;
@@ -156,28 +189,6 @@ body {
 
 #clear-history-btn:hover {
   background: #d32f2f;
-}
-
-/* ── Game Mode, Difficulty, and Personality Selectors ── */
-#game-mode-section, #difficulty-section, #personality-section {
-  margin-top: 10px;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-#game-mode-section label, #difficulty-section label, #personality-section label {
-  font-size: 1rem;
-  font-weight: 500;
-}
-
-#game-mode-section select, #difficulty-section select, #personality-section select {
-  padding: 8px 12px;
-  font-size: 1rem;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-  background-color: white;
 }
 
 /* ── History section ── */

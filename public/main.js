@@ -2,6 +2,7 @@
 let currentPlayer = 'X';
 let board = ['', '', '', '', '', '', '', '', ''];
 let gameOver = false;
+let gameMode = 'pvp'; // 'pvp' or 'ai'
 
 const WIN_COMBOS = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -36,6 +37,85 @@ function highlightWinner() {
     }
 }
 
+// ── AI Logic: Minimax Algorithm ──────────────────────────────
+function minimax(board, depth, isMaximizing) {
+    const winner = checkWinner();
+    if (winner === 'O') return 10 - depth;
+    if (winner === 'X') return depth - 10;
+    if (checkDraw()) return 0;
+
+    if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] === '') {
+                board[i] = 'O';
+                let score = minimax(board, depth + 1, false);
+                board[i] = '';
+                bestScore = Math.max(score, bestScore);
+            }
+        }
+        return bestScore;
+    } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] === '') {
+                board[i] = 'X';
+                let score = minimax(board, depth + 1, true);
+                board[i] = '';
+                bestScore = Math.min(score, bestScore);
+            }
+        }
+        return bestScore;
+    }
+}
+
+function getAIMove() {
+    let bestScore = -Infinity;
+    let bestMove = null;
+
+    for (let i = 0; i < board.length; i++) {
+        if (board[i] === '') {
+            board[i] = 'O';
+            let score = minimax(board, 0, false);
+            board[i] = '';
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = i;
+            }
+        }
+    }
+    return bestMove;
+}
+
+// ── AI makes a move ───────────────────────────────────────────
+function makeAIMove() {
+    if (gameOver) return;
+    const aiMove = getAIMove();
+    if (aiMove !== null) {
+        board[aiMove] = 'O';
+        const cells = document.querySelectorAll('.cell');
+        cells[aiMove].textContent = 'O';
+        cells[aiMove].classList.add('taken');
+
+        const winner = checkWinner();
+        if (winner) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = `AI wins! 🎉`;
+            highlightWinner();
+            saveGame('O', 'AI wins');
+        } else if (checkDraw()) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = "It's a draw! 🤝";
+            saveGame(null, 'draw');
+        } else {
+            currentPlayer = 'X';
+            document.getElementById('turn-indicator').textContent = `Your Turn`;
+        }
+    }
+}
+
 // ── Save a finished game to the server ───────────────────────
 async function saveGame(winner, result) {
     try {
@@ -46,7 +126,6 @@ async function saveGame(winner, result) {
         });
 
         if (response.ok) {
-            // Refresh the history panel so the new game shows up immediately
             loadHistory();
         } else {
             console.warn('Game not saved (not logged in?)');
@@ -76,14 +155,12 @@ async function loadHistory() {
             return;
         }
 
-        // Build a small card for each past game
         historyList.innerHTML = games.map(game => {
             const date = new Date(game.playedAt).toLocaleString();
             const resultText = game.result === 'draw'
                 ? "Draw 🤝"
                 : `${game.winner} wins 🎉`;
 
-            // Render the mini board with proper styling
             const cells = game.board.map((cell, i) =>
                 `<span class="mini-cell" data-index="${i}">${cell}</span>`
             ).join('');
@@ -122,10 +199,18 @@ async function clearHistory() {
     }
 }
 
+// ── Set game mode (PvP or AI) ──────────────────────────────
+function setGameMode() {
+    const modeSelect = document.getElementById('game-mode');
+    gameMode = modeSelect.value;
+    resetGame();
+}
+
 // ── Cell click handler ────────────────────────────────────────
 function handleCellClick(e) {
-    const index = parseInt(e.target.getAttribute('data-index'));
+    if (gameMode === 'ai' && currentPlayer === 'O') return; // Prevent player from clicking during AI's turn
 
+    const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
 
     board[index] = currentPlayer;
@@ -137,20 +222,26 @@ function handleCellClick(e) {
     if (winner) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = `Player ${winner} wins! 🎉`;
+        document.getElementById('game-status').textContent = gameMode === 'ai' && winner === 'O'
+            ? `AI wins! 🎉`
+            : `Player ${winner} wins! 🎉`;
         highlightWinner();
-        saveGame(winner, `${winner} wins`);
-
+        saveGame(winner, gameMode === 'ai' && winner === 'O' ? 'AI wins' : `${winner} wins`);
     } else if (checkDraw()) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
         document.getElementById('game-status').textContent = "It's a draw! 🤝";
         saveGame(null, 'draw');
-
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent =
-            `Player ${currentPlayer}'s Turn`;
+        document.getElementById('turn-indicator').textContent = gameMode === 'ai'
+            ? (currentPlayer === 'X' ? 'Your Turn' : 'AI is thinking...')
+            : `Player ${currentPlayer}'s Turn`;
+
+        // If AI mode and it's AI's turn, make the move after a short delay
+        if (gameMode === 'ai' && currentPlayer === 'O') {
+            setTimeout(makeAIMove, 500);
+        }
     }
 }
 
@@ -165,7 +256,9 @@ function resetGame() {
         cell.classList.remove('taken', 'winner');
     });
 
-    document.getElementById('turn-indicator').textContent = "Player X's Turn";
+    document.getElementById('turn-indicator').textContent = gameMode === 'ai'
+        ? 'Your Turn'
+        : "Player X's Turn";
     document.getElementById('game-status').textContent = '';
 }
 
@@ -233,5 +326,5 @@ function showGame(username) {
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
-    loadHistory(); // load history whenever someone logs in
+    loadHistory();
 }

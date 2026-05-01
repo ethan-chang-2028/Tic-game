@@ -24,30 +24,32 @@
         <h2 id="welcome-message"></h2>
         <button onclick="logout()">Log Out</button>
 
-        <div id="game-mode-section">
-            <label for="game-mode">Game Mode:</label>
-            <select id="game-mode" onchange="setGameMode()">
-                <option value="pvp">Player vs Player</option>
-                <option value="ai">Player vs AI</option>
-            </select>
-        </div>
+        <div id="CP07-levels">
+            <div id="game-mode-section">
+                <label for="game-mode">Game Mode:</label>
+                <select id="game-mode" onchange="toggleAISettings()">
+                    <option value="pvp">Player vs Player</option>
+                    <option value="ai">Player vs AI</option>
+                </select>
+            </div>
 
-        <div id="difficulty-section" style="display: none;">
-            <label for="ai-difficulty">AI Difficulty:</label>
-            <select id="ai-difficulty" onchange="setAIDifficulty()">
-                <option value="easy">Easy</option>
-                <option value="medium" selected>Medium</option>
-                <option value="hard">Hard</option>
-            </select>
-        </div>
+            <div id="difficulty-section">
+                <label for="ai-difficulty">AI Difficulty:</label>
+                <select id="ai-difficulty" onchange="setAIDifficulty()">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
 
-        <div id="personality-section" style="display: none;">
-            <label for="ai-personality">AI Personality:</label>
-            <select id="ai-personality" onchange="setAIPersonality()">
-                <option value="neutral" selected>Neutral</option>
-                <option value="mathematician">Mathematician</option>
-                <option value="psychologist">Psychologist</option>
-            </select>
+            <div id="personality-section">
+                <label for="ai-personality">AI Personality:</label>
+                <select id="ai-personality" onchange="setAIPersonality()">
+                    <option value="neutral" selected>Neutral</option>
+                    <option value="mathematician">Mathematician</option>
+                    <option value="psychologist">Psychologist</option>
+                </select>
+            </div>
         </div>
 
         <p id="turn-indicator">Player X's Turn</p>

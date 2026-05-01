@@ -3,6 +3,8 @@ let currentPlayer = 'X';
 let board = ['', '', '', '', '', '', '', '', ''];
 let gameOver = false;
 let gameMode = 'pvp'; // 'pvp' or 'ai'
+let aiDifficulty = 'medium'; // 'easy', 'medium', 'hard'
+let aiPersonality = 'neutral'; // 'neutral', 'mathematician', 'psychologist'
 
 const WIN_COMBOS = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -37,7 +39,42 @@ function highlightWinner() {
     }
 }
 
-// ── AI Logic: Minimax Algorithm ──────────────────────────────
+// ── AI Personalities ────────────────────────────────────────
+const personalities = {
+    neutral: {
+        win: " wins! 🎉",
+        lose: "You got me this time...",
+        draw: "It's a draw! 🤝",
+        thinking: "AI is thinking...",
+        turn: "Your Turn"
+    },
+    mathematician: {
+        win: " wins by the power of logic! ∫√∑",
+        lose: "Your strategy was... unexpected. Recalculating...",
+        draw: "A perfect equilibrium! 1-1=0",
+        thinking: "Calculating optimal move...",
+        turn: "Your move, human."
+    },
+    psychologist: {
+        win: " wins! I knew you'd pick that spot. 😉",
+        lose: "Interesting... you outsmarted me. Let's analyze that.",
+        draw: "A stalemate. Your subconscious is strong.",
+        thinking: "Analyzing your patterns...",
+        turn: "What's your next move?"
+    }
+};
+
+function getMessage(type, winner) {
+    const p = personalities[aiPersonality];
+    if (type === 'win') return winner === 'O' ? `AI${p.win}` : `Player ${winner}${p.win}`;
+    if (type === 'lose') return p.lose;
+    if (type === 'draw') return p.draw;
+    if (type === 'thinking') return p.thinking;
+    if (type === 'turn') return p.turn;
+    return '';
+}
+
+// ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
 function minimax(board, depth, isMaximizing) {
     const winner = checkWinner();
     if (winner === 'O') return 10 - depth;
@@ -69,10 +106,41 @@ function minimax(board, depth, isMaximizing) {
     }
 }
 
-function getAIMove() {
+// ── AI Logic: Easy (Random Move) ──────────────────────────────
+function getRandomMove() {
+    const emptyCells = board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
+    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+}
+
+// ── AI Logic: Medium (Block/Win + Random) ─────────────────────
+function getMediumMove() {
+    // Check for winning move
+    for (let i = 0; i < WIN_COMBOS.length; i++) {
+        const [a, b, c] = WIN_COMBOS[i];
+        if (board[a] === 'O' && board[b] === 'O' && board[c] === '') return c;
+        if (board[a] === 'O' && board[c] === 'O' && board[b] === '') return b;
+        if (board[b] === 'O' && board[c] === 'O' && board[a] === '') return a;
+    }
+    // Block player's winning move
+    for (let i = 0; i < WIN_COMBOS.length; i++) {
+        const [a, b, c] = WIN_COMBOS[i];
+        if (board[a] === 'X' && board[b] === 'X' && board[c] === '') return c;
+        if (board[a] === 'X' && board[c] === 'X' && board[b] === '') return b;
+        if (board[b] === 'X' && board[c] === 'X' && board[a] === '') return a;
+    }
+    // Take center if available
+    if (board[4] === '') return 4;
+    // Take a corner if available
+    const corners = [0, 2, 6, 8].filter(i => board[i] === '');
+    if (corners.length > 0) return corners[Math.floor(Math.random() * corners.length)];
+    // Random move
+    return getRandomMove();
+}
+
+// ── AI Logic: Hard (Minimax) ──────────────────────────────────
+function getHardMove() {
     let bestScore = -Infinity;
     let bestMove = null;
-
     for (let i = 0; i < board.length; i++) {
         if (board[i] === '') {
             board[i] = 'O';
@@ -87,7 +155,14 @@ function getAIMove() {
     return bestMove;
 }
 
-// ── AI makes a move ───────────────────────────────────────────
+// ── AI makes a move based on difficulty ──────────────────────
+function getAIMove() {
+    if (aiDifficulty === 'easy') return getRandomMove();
+    if (aiDifficulty === 'medium') return getMediumMove();
+    if (aiDifficulty === 'hard') return getHardMove();
+    return getRandomMove();
+}
+
 function makeAIMove() {
     if (gameOver) return;
     const aiMove = getAIMove();
@@ -101,17 +176,17 @@ function makeAIMove() {
         if (winner) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = `AI wins! 🎉`;
+            document.getElementById('game-status').textContent = getMessage('win', winner);
             highlightWinner();
-            saveGame('O', 'AI wins');
+            saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
         } else if (checkDraw()) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = "It's a draw! 🤝";
+            document.getElementById('game-status').textContent = getMessage('draw');
             saveGame(null, 'draw');
         } else {
             currentPlayer = 'X';
-            document.getElementById('turn-indicator').textContent = `Your Turn`;
+            document.getElementById('turn-indicator').textContent = getMessage('turn');
         }
     }
 }
@@ -122,9 +197,8 @@ async function saveGame(winner, result) {
         const response = await fetch('/api/games', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ winner, result, board })
+            body: JSON.stringify({ winner, result, board, aiDifficulty, aiPersonality })
         });
-
         if (response.ok) {
             loadHistory();
         } else {
@@ -142,14 +216,12 @@ async function loadHistory() {
 
     try {
         const response = await fetch('/api/games');
-
         if (!response.ok) {
             historyList.innerHTML = '<p>Log in to see your history.</p>';
             return;
         }
 
         const games = await response.json();
-
         if (games.length === 0) {
             historyList.innerHTML = '<p>No games played yet.</p>';
             return;
@@ -158,12 +230,15 @@ async function loadHistory() {
         historyList.innerHTML = games.map(game => {
             const date = new Date(game.playedAt).toLocaleString();
             const resultText = game.result === 'draw'
-                ? "Draw 🤝"
-                : `${game.winner} wins 🎉`;
+                ? getMessage('draw')
+                : `${game.winner} wins`;
 
             const cells = game.board.map((cell, i) =>
                 `<span class="mini-cell" data-index="${i}">${cell}</span>`
             ).join('');
+
+            const difficultyInfo = game.aiDifficulty ? 
+                `<div class="game-meta">Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>` : '';
 
             return `
                 <div class="history-card">
@@ -171,6 +246,7 @@ async function loadHistory() {
                         <span class="history-result">${resultText}</span>
                         <span class="history-date">${date}</span>
                     </div>
+                    ${difficultyInfo}
                     <div class="mini-board">${cells}</div>
                 </div>
             `;
@@ -185,7 +261,6 @@ async function loadHistory() {
 // ── Clear game history for the logged-in user ──────────────
 async function clearHistory() {
     if (!confirm('Are you sure you want to clear your game history?')) return;
-
     try {
         const response = await fetch('/api/games', { method: 'DELETE' });
         if (response.ok) {
@@ -206,10 +281,21 @@ function setGameMode() {
     resetGame();
 }
 
+// ── Set AI difficulty ────────────────────────────────────────
+function setAIDifficulty() {
+    const difficultySelect = document.getElementById('ai-difficulty');
+    aiDifficulty = difficultySelect.value;
+}
+
+// ── Set AI personality ───────────────────────────────────────
+function setAIPersonality() {
+    const personalitySelect = document.getElementById('ai-personality');
+    aiPersonality = personalitySelect.value;
+}
+
 // ── Cell click handler ────────────────────────────────────────
 function handleCellClick(e) {
-    if (gameMode === 'ai' && currentPlayer === 'O') return; // Prevent player from clicking during AI's turn
-
+    if (gameMode === 'ai' && currentPlayer === 'O') return;
     const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
 
@@ -218,27 +304,23 @@ function handleCellClick(e) {
     e.target.classList.add('taken');
 
     const winner = checkWinner();
-
     if (winner) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = gameMode === 'ai' && winner === 'O'
-            ? `AI wins! 🎉`
-            : `Player ${winner} wins! 🎉`;
+        document.getElementById('game-status').textContent = getMessage('win', winner);
         highlightWinner();
-        saveGame(winner, gameMode === 'ai' && winner === 'O' ? 'AI wins' : `${winner} wins`);
+        saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
     } else if (checkDraw()) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = "It's a draw! 🤝";
+        document.getElementById('game-status').textContent = getMessage('draw');
         saveGame(null, 'draw');
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
         document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-            ? (currentPlayer === 'X' ? 'Your Turn' : 'AI is thinking...')
+            ? (currentPlayer === 'X' ? getMessage('turn') : getMessage('thinking'))
             : `Player ${currentPlayer}'s Turn`;
 
-        // If AI mode and it's AI's turn, make the move after a short delay
         if (gameMode === 'ai' && currentPlayer === 'O') {
             setTimeout(makeAIMove, 500);
         }
@@ -257,7 +339,7 @@ function resetGame() {
     });
 
     document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-        ? 'Your Turn'
+        ? getMessage('turn')
         : "Player X's Turn";
     document.getElementById('game-status').textContent = '';
 }
@@ -272,7 +354,6 @@ function initBoard() {
 // ── Auth ──────────────────────────────────────────────────────
 window.onload = async () => {
     initBoard();
-
     const response = await fetch('/api/me');
     if (response.ok) {
         const data = await response.json();
@@ -283,13 +364,11 @@ window.onload = async () => {
 async function register() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-
     const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
     });
-
     const data = await response.json();
     document.getElementById('auth-message').textContent = data.error || data.message;
 }
@@ -297,13 +376,11 @@ async function register() {
 async function login() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
-
     const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
     });
-
     const data = await response.json();
     if (response.ok) {
         showGame(data.username);

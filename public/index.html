@@ -32,6 +32,24 @@
             </select>
         </div>
 
+        <div id="difficulty-section" style="display: none;">
+            <label for="ai-difficulty">AI Difficulty:</label>
+            <select id="ai-difficulty" onchange="setAIDifficulty()">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+        </div>
+
+        <div id="personality-section" style="display: none;">
+            <label for="ai-personality">AI Personality:</label>
+            <select id="ai-personality" onchange="setAIPersonality()">
+                <option value="neutral" selected>Neutral</option>
+                <option value="mathematician">Mathematician</option>
+                <option value="psychologist">Psychologist</option>
+            </select>
+        </div>
+
         <p id="turn-indicator">Player X's Turn</p>
         <p id="game-status"></p>
 

@@ -69,33 +69,70 @@
 
         <button id="reset-btn" onclick="resetGame()">New Game</button>
 
-        <!-- STATS SECTION -->
-        <section id="stats-section">
-            <h3>Your Stats by Difficulty</h3>
-            <div id="stats-container">
-                <div class="stat-card" id="easy-stats">
-                    <h4>Easy</h4>
-                    <p>Wins: <span class="stat-value" id="easy-wins">0</span></p>
-                    <p>Losses: <span class="stat-value" id="easy-losses">0</span></p>
-                    <p>Draws: <span class="stat-value" id="easy-draws">0</span></p>
-                    <button class="reset-stats-btn" onclick="resetStats('easy')">Reset</button>
+        <!-- CP08-stats: Global Stats and Leaderboard -->
+        <div id="CP08-stats">
+            <!-- Global Stats -->
+            <section id="global-stats-section">
+                <h3>Your Global Stats</h3>
+                <div id="global-stats-container">
+                    <div class="global-stat-card">
+                        <p>Total Wins: <span class="global-stat-value" id="global-wins">0</span></p>
+                        <p>Total Losses: <span class="global-stat-value" id="global-losses">0</span></p>
+                        <p>Total Draws: <span class="global-stat-value" id="global-draws">0</span></p>
+                        <p>Win Rate: <span class="global-stat-value" id="global-win-rate">0%</span></p>
+                    </div>
                 </div>
-                <div class="stat-card" id="medium-stats">
-                    <h4>Medium</h4>
-                    <p>Wins: <span class="stat-value" id="medium-wins">0</span></p>
-                    <p>Losses: <span class="stat-value" id="medium-losses">0</span></p>
-                    <p>Draws: <span class="stat-value" id="medium-draws">0</span></p>
-                    <button class="reset-stats-btn" onclick="resetStats('medium')">Reset</button>
+            </section>
+
+            <!-- Stats by Difficulty -->
+            <section id="stats-section">
+                <h3>Your Stats by Difficulty</h3>
+                <div id="stats-container">
+                    <div class="stat-card" id="easy-stats">
+                        <h4>Easy</h4>
+                        <p>Wins: <span class="stat-value" id="easy-wins">0</span></p>
+                        <p>Losses: <span class="stat-value" id="easy-losses">0</span></p>
+                        <p>Draws: <span class="stat-value" id="easy-draws">0</span></p>
+                        <button class="reset-stats-btn" onclick="resetStats('easy')">Reset</button>
+                    </div>
+                    <div class="stat-card" id="medium-stats">
+                        <h4>Medium</h4>
+                        <p>Wins: <span class="stat-value" id="medium-wins">0</span></p>
+                        <p>Losses: <span class="stat-value" id="medium-losses">0</span></p>
+                        <p>Draws: <span class="stat-value" id="medium-draws">0</span></p>
+                        <button class="reset-stats-btn" onclick="resetStats('medium')">Reset</button>
+                    </div>
+                    <div class="stat-card" id="hard-stats">
+                        <h4>Hard</h4>
+                        <p>Wins: <span class="stat-value" id="hard-wins">0</span></p>
+                        <p>Losses: <span class="stat-value" id="hard-losses">0</span></p>
+                        <p>Draws: <span class="stat-value" id="hard-draws">0</span></p>
+                        <button class="reset-stats-btn" onclick="resetStats('hard')">Reset</button>
+                    </div>
                 </div>
-                <div class="stat-card" id="hard-stats">
-                    <h4>Hard</h4>
-                    <p>Wins: <span class="stat-value" id="hard-wins">0</span></p>
-                    <p>Losses: <span class="stat-value" id="hard-losses">0</span></p>
-                    <p>Draws: <span class="stat-value" id="hard-draws">0</span></p>
-                    <button class="reset-stats-btn" onclick="resetStats('hard')">Reset</button>
+            </section>
+
+            <!-- Leaderboard -->
+            <section id="leaderboard-section">
+                <h3>🏆 Leaderboard (Top 10 Players)</h3>
+                <div id="leaderboard-container">
+                    <table id="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Total Wins</th>
+                                <th>Total Games</th>
+                                <th>Win Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-body">
+                            <tr><td colspan="5">Loading leaderboard...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
 
         <!-- HISTORY -->
         <section id="history-section">

@@ -203,7 +203,54 @@ app.get('/api/stats', (req, res) => {
         }
     });
 
-    res.json(userStats);
+    // Calculate global stats (across all difficulties)
+    const globalStats = {
+        wins: 0,
+        losses: 0,
+        draws: 0
+    };
+
+    allDifficulties.forEach(difficulty => {
+        globalStats.wins += userStats[difficulty].wins;
+        globalStats.losses += userStats[difficulty].losses;
+        globalStats.draws += userStats[difficulty].draws;
+    });
+
+    res.json({ byDifficulty: userStats, global: globalStats });
+});
+
+// Get global leaderboard (top players by total wins)
+app.get('/api/leaderboard', (req, res) => {
+    const stats = getStats();
+    const leaderboard = [];
+
+    // Calculate total wins for each user across all difficulties
+    for (const [username, userStats] of Object.entries(stats)) {
+        const totalWins = ['easy', 'medium', 'hard'].reduce((sum, difficulty) => {
+            return sum + (userStats[difficulty]?.wins || 0);
+        }, 0);
+
+        const totalGames = ['easy', 'medium', 'hard'].reduce((sum, difficulty) => {
+            return sum + (userStats[difficulty]?.wins || 0) + 
+                          (userStats[difficulty]?.losses || 0) + 
+                          (userStats[difficulty]?.draws || 0);
+        }, 0);
+
+        if (totalGames > 0) {
+            leaderboard.push({
+                username,
+                totalWins,
+                totalGames,
+                winRate: totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0
+            });
+        }
+    }
+
+    // Sort by total wins (descending), then by win rate
+    leaderboard.sort((a, b) => b.totalWins - a.totalWins || b.winRate - a.winRate);
+
+    // Return top 10 players
+    res.json(leaderboard.slice(0, 10));
 });
 
 // Reset stats for a specific difficulty

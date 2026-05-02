@@ -213,6 +213,7 @@ async function saveGame(winner, result) {
         });
         if (response.ok) {
             loadHistory();
+            loadStats(); // Update stats after saving a game
         } else {
             console.warn('Game not saved (not logged in?)');
         }
@@ -267,6 +268,52 @@ async function loadHistory() {
     } catch (err) {
         historyList.innerHTML = '<p>Could not load history.</p>';
         console.error(err);
+    }
+}
+
+// ── Load and display stats by difficulty ────────────────────
+async function loadStats() {
+    try {
+        const response = await fetch('/api/stats');
+        if (!response.ok) {
+            console.warn('Not logged in or no stats available.');
+            return;
+        }
+
+        const stats = await response.json();
+        
+        // Update stats for each difficulty
+        ['easy', 'medium', 'hard'].forEach(difficulty => {
+            const difficultyStats = stats[difficulty] || { wins: 0, losses: 0, draws: 0 };
+            document.getElementById(`${difficulty}-wins`).textContent = difficultyStats.wins;
+            document.getElementById(`${difficulty}-losses`).textContent = difficultyStats.losses;
+            document.getElementById(`${difficulty}-draws`).textContent = difficultyStats.draws;
+        });
+    } catch (err) {
+        console.error('Error loading stats:', err);
+    }
+}
+
+// ── Reset stats for a specific difficulty ──────────────────
+async function resetStats(difficulty) {
+    if (!confirm(`Are you sure you want to reset your ${difficulty} difficulty stats?`)) return;
+    
+    try {
+        const response = await fetch('/api/stats/reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ difficulty })
+        });
+        
+        if (response.ok) {
+            loadStats();
+            alert(`Stats reset for ${difficulty} difficulty!`);
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to reset stats.');
+        }
+    } catch (err) {
+        console.error('Error resetting stats:', err);
     }
 }
 
@@ -426,5 +473,6 @@ function showGame(username) {
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
     loadHistory();
+    loadStats(); // Load stats when game section is shown
     toggleAISettings();
 }

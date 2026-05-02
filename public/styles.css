@@ -191,18 +191,55 @@ body {
   background: #d32f2f;
 }
 
-/* ── Stats Section ── */
-#stats-section {
-  margin-top: 30px;
+/* ── CP08-stats: Global Stats Section ── */
+#CP08-stats {
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
+  margin-top: 30px;
+  margin-bottom: 30px;
 }
 
-#stats-section h3 {
+#global-stats-section {
+  margin-bottom: 30px;
+}
+
+#global-stats-section h3,
+#stats-section h3,
+#leaderboard-section h3 {
   font-size: 1.2rem;
   margin-bottom: 15px;
   text-align: center;
   color: #2c3e50;
+}
+
+#global-stats-container {
+  display: flex;
+  justify-content: center;
+}
+
+.global-stat-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  min-width: 250px;
+}
+
+.global-stat-card p {
+  margin: 10px 0;
+  font-size: 1rem;
+}
+
+.global-stat-value {
+  font-weight: bold;
+  color: #2e7d32;
+  font-size: 1.1rem;
+}
+
+/* ── Stats Section ── */
+#stats-section {
+  margin-bottom: 30px;
 }
 
 #stats-container {
@@ -254,6 +291,61 @@ body {
 
 .reset-stats-btn:hover {
   background: #e68a00;
+}
+
+/* ── Leaderboard Section ── */
+#leaderboard-section {
+  margin-bottom: 30px;
+}
+
+#leaderboard-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+#leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#leaderboard-table th,
+#leaderboard-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+#leaderboard-table th {
+  background-color: #3498db;
+  color: white;
+  font-weight: bold;
+}
+
+#leaderboard-table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+#leaderboard-table tr:hover {
+  background-color: #e3f2fd;
+}
+
+#leaderboard-body tr:first-child td {
+  font-weight: bold;
+  color: #ff9800;
+}
+
+#leaderboard-body tr:nth-child(2) td {
+  font-weight: bold;
+  color: #757575;
+}
+
+#leaderboard-body tr:nth-child(3) td {
+  font-weight: bold;
+  color: #cd7f32;
 }
 
 /* ── History section ── */

@@ -69,6 +69,34 @@
 
         <button id="reset-btn" onclick="resetGame()">New Game</button>
 
+        <!-- STATS SECTION -->
+        <section id="stats-section">
+            <h3>Your Stats by Difficulty</h3>
+            <div id="stats-container">
+                <div class="stat-card" id="easy-stats">
+                    <h4>Easy</h4>
+                    <p>Wins: <span class="stat-value" id="easy-wins">0</span></p>
+                    <p>Losses: <span class="stat-value" id="easy-losses">0</span></p>
+                    <p>Draws: <span class="stat-value" id="easy-draws">0</span></p>
+                    <button class="reset-stats-btn" onclick="resetStats('easy')">Reset</button>
+                </div>
+                <div class="stat-card" id="medium-stats">
+                    <h4>Medium</h4>
+                    <p>Wins: <span class="stat-value" id="medium-wins">0</span></p>
+                    <p>Losses: <span class="stat-value" id="medium-losses">0</span></p>
+                    <p>Draws: <span class="stat-value" id="medium-draws">0</span></p>
+                    <button class="reset-stats-btn" onclick="resetStats('medium')">Reset</button>
+                </div>
+                <div class="stat-card" id="hard-stats">
+                    <h4>Hard</h4>
+                    <p>Wins: <span class="stat-value" id="hard-wins">0</span></p>
+                    <p>Losses: <span class="stat-value" id="hard-losses">0</span></p>
+                    <p>Draws: <span class="stat-value" id="hard-draws">0</span></p>
+                    <button class="reset-stats-btn" onclick="resetStats('hard')">Reset</button>
+                </div>
+            </div>
+        </section>
+
         <!-- HISTORY -->
         <section id="history-section">
             <h3>Your Game History</h3>

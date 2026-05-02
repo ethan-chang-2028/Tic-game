@@ -19,6 +19,7 @@ app.use(session({
 const usersFilePath = path.join(__dirname, 'data', 'users.json');
 const gamesFilePath = path.join(__dirname, 'data', 'games.json');
 const statsFilePath = path.join(__dirname, 'data', 'stats.json');
+const aiStatsFilePath = path.join(__dirname, 'data', 'ai-stats.json');
 
 // Initialize JSON files if they don't exist
 const initDataFiles = () => {
@@ -27,6 +28,7 @@ const initDataFiles = () => {
     if (!fs.existsSync(usersFilePath)) fs.writeFileSync(usersFilePath, '[]');
     if (!fs.existsSync(gamesFilePath)) fs.writeFileSync(gamesFilePath, '[]');
     if (!fs.existsSync(statsFilePath)) fs.writeFileSync(statsFilePath, '{}');
+    if (!fs.existsSync(aiStatsFilePath)) fs.writeFileSync(aiStatsFilePath, '{}');
 };
 initDataFiles();
 
@@ -61,6 +63,17 @@ function saveStats(stats) {
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
     fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+}
+
+function getAIStats() {
+    if (!fs.existsSync(aiStatsFilePath)) return {};
+    return JSON.parse(fs.readFileSync(aiStatsFilePath, 'utf8'));
+}
+
+function saveAIStats(stats) {
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+    fs.writeFileSync(aiStatsFilePath, JSON.stringify(stats, null, 2));
 }
 
 // --- AUTH ROUTES ---
@@ -135,7 +148,7 @@ app.post('/api/games', (req, res) => {
     games.push(newGame);
     saveGames(games);
 
-    // Update stats if it's an AI game
+    // Update player stats if it's an AI game
     if (aiDifficulty) {
         const stats = getStats();
         if (!stats[req.session.username]) {
@@ -154,6 +167,23 @@ app.post('/api/games', (req, res) => {
         }
 
         saveStats(stats);
+
+        // Update AI stats
+        const aiStats = getAIStats();
+        const aiKey = `${aiDifficulty}-${aiPersonality}`;
+        if (!aiStats[aiKey]) {
+            aiStats[aiKey] = { wins: 0, losses: 0, draws: 0, difficulty: aiDifficulty, personality: aiPersonality };
+        }
+
+        if (winner === 'O') {
+            aiStats[aiKey].wins++;
+        } else if (winner === 'X') {
+            aiStats[aiKey].losses++;
+        } else if (result === 'draw') {
+            aiStats[aiKey].draws++;
+        }
+
+        saveAIStats(aiStats);
     }
 
     res.status(201).json({ message: 'Game saved!', game: newGame });
@@ -217,6 +247,63 @@ app.get('/api/stats', (req, res) => {
     });
 
     res.json({ byDifficulty: userStats, global: globalStats });
+});
+
+// Get AI stats (global stats for all AI configurations)
+app.get('/api/ai-stats', (req, res) => {
+    const aiStats = getAIStats();
+    
+    // Calculate global AI stats (across all AI configurations)
+    const globalAIStats = {
+        wins: 0,
+        losses: 0,
+        draws: 0
+    };
+
+    for (const [key, stats] of Object.entries(aiStats)) {
+        globalAIStats.wins += stats.wins || 0;
+        globalAIStats.losses += stats.losses || 0;
+        globalAIStats.draws += stats.draws || 0;
+    }
+
+    // Calculate win rate
+    const totalAIGames = globalAIStats.wins + globalAIStats.losses + globalAIStats.draws;
+    const aiWinRate = totalAIGames > 0 ? Math.round((globalAIStats.wins / totalAIGames) * 100) : 0;
+
+    res.json({ 
+        byConfiguration: aiStats,
+        global: { ...globalAIStats, winRate: aiWinRate } 
+    });
+});
+
+// Get AI leaderboard (top AI configurations by win rate)
+app.get('/api/ai-leaderboard', (req, res) => {
+    const aiStats = getAIStats();
+    const leaderboard = [];
+
+    // Calculate total wins, games, and win rate for each AI configuration
+    for (const [key, stats] of Object.entries(aiStats)) {
+        const totalWins = stats.wins || 0;
+        const totalGames = (stats.wins || 0) + (stats.losses || 0) + (stats.draws || 0);
+        const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+
+        if (totalGames > 0) {
+            leaderboard.push({
+                key,
+                difficulty: stats.difficulty || 'unknown',
+                personality: stats.personality || 'neutral',
+                totalWins,
+                totalGames,
+                winRate
+            });
+        }
+    }
+
+    // Sort by win rate (descending), then by total games
+    leaderboard.sort((a, b) => b.winRate - a.winRate || b.totalGames - a.totalGames);
+
+    // Return top 10 AI configurations
+    res.json(leaderboard.slice(0, 10));
 });
 
 // Get global leaderboard (top players by total wins)

@@ -213,8 +213,10 @@ async function saveGame(winner, result) {
         });
         if (response.ok) {
             loadHistory();
-            loadStats(); // Update stats after saving a game
-            loadLeaderboard(); // Update leaderboard after saving a game
+            loadStats(); // Update player stats after saving a game
+            loadLeaderboard(); // Update player leaderboard after saving a game
+            loadAIStats(); // Update AI stats after saving a game
+            loadAILeaderboard(); // Update AI leaderboard after saving a game
         } else {
             console.warn('Game not saved (not logged in?)');
         }
@@ -272,7 +274,7 @@ async function loadHistory() {
     }
 }
 
-// ── Load and display stats (by difficulty + global) ─────────
+// ── Load and display player stats (by difficulty + global) ───
 async function loadStats() {
     try {
         const response = await fetch('/api/stats');
@@ -304,16 +306,39 @@ async function loadStats() {
         document.getElementById('global-win-rate').textContent = `${winRate}%`;
 
     } catch (err) {
-        console.error('Error loading stats:', err);
+        console.error('Error loading player stats:', err);
     }
 }
 
-// ── Load and display leaderboard ────────────────────────────
+// ── Load and display AI stats (global) ───────────────────────
+async function loadAIStats() {
+    try {
+        const response = await fetch('/api/ai-stats');
+        if (!response.ok) {
+            console.warn('Could not load AI stats.');
+            return;
+        }
+
+        const data = await response.json();
+        const globalAI = data.global || { wins: 0, losses: 0, draws: 0, winRate: 0 };
+
+        // Update AI global stats
+        document.getElementById('ai-global-wins').textContent = globalAI.wins;
+        document.getElementById('ai-global-losses').textContent = globalAI.losses;
+        document.getElementById('ai-global-draws').textContent = globalAI.draws;
+        document.getElementById('ai-global-win-rate').textContent = `${globalAI.winRate}%`;
+
+    } catch (err) {
+        console.error('Error loading AI stats:', err);
+    }
+}
+
+// ── Load and display player leaderboard ──────────────────────
 async function loadLeaderboard() {
     try {
         const response = await fetch('/api/leaderboard');
         if (!response.ok) {
-            console.warn('Could not load leaderboard.');
+            console.warn('Could not load player leaderboard.');
             return;
         }
 
@@ -336,7 +361,40 @@ async function loadLeaderboard() {
         `).join('');
 
     } catch (err) {
-        console.error('Error loading leaderboard:', err);
+        console.error('Error loading player leaderboard:', err);
+    }
+}
+
+// ── Load and display AI leaderboard ──────────────────────────
+async function loadAILeaderboard() {
+    try {
+        const response = await fetch('/api/ai-leaderboard');
+        if (!response.ok) {
+            console.warn('Could not load AI leaderboard.');
+            return;
+        }
+
+        const aiLeaderboard = await response.json();
+        const aiLeaderboardBody = document.getElementById('ai-leaderboard-body');
+
+        if (aiLeaderboard.length === 0) {
+            aiLeaderboardBody.innerHTML = '<tr><td colspan="6">No AI configurations on the leaderboard yet.</td></tr>';
+            return;
+        }
+
+        aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${entry.difficulty}</td>
+                <td>${entry.personality}</td>
+                <td>${entry.totalWins}</td>
+                <td>${entry.totalGames}</td>
+                <td>${entry.winRate}%</td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error('Error loading AI leaderboard:', err);
     }
 }
 
@@ -519,7 +577,9 @@ function showGame(username) {
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
     loadHistory();
-    loadStats(); // Load stats when game section is shown
-    loadLeaderboard(); // Load leaderboard when game section is shown
+    loadStats(); // Load player stats when game section is shown
+    loadLeaderboard(); // Load player leaderboard when game section is shown
+    loadAIStats(); // Load AI stats when game section is shown
+    loadAILeaderboard(); // Load AI leaderboard when game section is shown
     toggleAISettings();
 }

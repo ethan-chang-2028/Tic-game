@@ -2,21 +2,20 @@
 let currentPlayer = 'X';
 let board = ['', '', '', '', '', '', '', '', ''];
 let gameOver = false;
-let gameMode = 'pvp'; // 'pvp' or 'ai'
-let aiDifficulty = 'medium'; // 'easy', 'medium', 'hard'
-let aiPersonality = 'neutral'; // 'neutral', 'mathematician', 'psychologist'
+let gameMode = 'pvp';
+let aiDifficulty = 'medium';
+let aiPersonality = 'neutral';
 
 const WIN_COMBOS = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
-    [0, 4, 8], [2, 4, 6]              // diagonals
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
 ];
 
-// ── Win / draw detection ─────────────────────────────────────
 function checkWinner() {
     for (const [a, b, c] of WIN_COMBOS) {
         if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            return board[a]; // 'X' or 'O'
+            return board[a];
         }
     }
     return null;
@@ -26,7 +25,6 @@ function checkDraw() {
     return board.every(cell => cell !== '');
 }
 
-// ── Highlight the winning cells green ────────────────────────
 function highlightWinner() {
     for (const [a, b, c] of WIN_COMBOS) {
         if (board[a] && board[a] === board[b] && board[a] === board[c]) {
@@ -39,7 +37,6 @@ function highlightWinner() {
     }
 }
 
-// ── AI Personalities with Varied Responses ────────────────────
 const personalities = {
     neutral: {
         win: [" wins! 🎉", " wins! Good game!", " wins! Try again!", " wins! You'll get it next time!"],
@@ -64,35 +61,24 @@ const personalities = {
     }
 };
 
-// Helper function to get a random message from the personality arrays
 function getRandomMessage(type, winner) {
     const p = personalities[aiPersonality];
     if (!p) return '';
-    
     const messages = p[type];
     if (!messages || messages.length === 0) return '';
-    
     const randomIndex = Math.floor(Math.random() * messages.length);
     let message = messages[randomIndex];
-    
     if (type === 'win') {
-        if (winner === 'O') {
-            return `AI${message}`;
-        } else {
-            return `Player ${winner}${message}`;
-        }
+        return winner === 'O' ? `AI${message}` : `Player ${winner}${message}`;
     }
-    
     return message;
 }
 
-// ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
 function minimax(board, depth, isMaximizing) {
     const winner = checkWinner();
     if (winner === 'O') return 10 - depth;
     if (winner === 'X') return depth - 10;
     if (checkDraw()) return 0;
-
     if (isMaximizing) {
         let bestScore = -Infinity;
         for (let i = 0; i < board.length; i++) {
@@ -118,38 +104,30 @@ function minimax(board, depth, isMaximizing) {
     }
 }
 
-// ── AI Logic: Easy (Random Move) ────
 function getRandomMove() {
     const emptyCells = board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
 
-// ── AI Logic: Medium (Block/Win + Random) ─────────────────────
 function getMediumMove() {
-    // Check for winning move
     for (let i = 0; i < WIN_COMBOS.length; i++) {
         const [a, b, c] = WIN_COMBOS[i];
         if (board[a] === 'O' && board[b] === 'O' && board[c] === '') return c;
         if (board[a] === 'O' && board[c] === 'O' && board[b] === '') return b;
         if (board[b] === 'O' && board[c] === 'O' && board[a] === '') return a;
     }
-    // Block player's winning move
     for (let i = 0; i < WIN_COMBOS.length; i++) {
         const [a, b, c] = WIN_COMBOS[i];
         if (board[a] === 'X' && board[b] === 'X' && board[c] === '') return c;
         if (board[a] === 'X' && board[c] === 'X' && board[b] === '') return b;
         if (board[b] === 'X' && board[c] === 'X' && board[a] === '') return a;
     }
-    // Take center if available
     if (board[4] === '') return 4;
-    // Take a corner if available
     const corners = [0, 2, 6, 8].filter(i => board[i] === '');
     if (corners.length > 0) return corners[Math.floor(Math.random() * corners.length)];
-    // Random move
     return getRandomMove();
 }
 
-// ── AI Logic: Hard (Minimax) ──────────────────────────────────
 function getHardMove() {
     let bestScore = -Infinity;
     let bestMove = null;
@@ -167,7 +145,6 @@ function getHardMove() {
     return bestMove;
 }
 
-// ── AI makes a move based on difficulty ──────────────────────
 function getAIMove() {
     if (aiDifficulty === 'easy') return getRandomMove();
     if (aiDifficulty === 'medium') return getMediumMove();
@@ -183,7 +160,6 @@ function makeAIMove() {
         const cells = document.querySelectorAll('.cell');
         cells[aiMove].textContent = 'O';
         cells[aiMove].classList.add('taken');
-
         const winner = checkWinner();
         if (winner) {
             gameOver = true;
@@ -203,7 +179,6 @@ function makeAIMove() {
     }
 }
 
-// ── Save a finished game to the server ───────────────────────
 async function saveGame(winner, result) {
     try {
         const response = await fetch('/api/games', {
@@ -213,10 +188,7 @@ async function saveGame(winner, result) {
         });
         if (response.ok) {
             loadHistory();
-            loadStats(); // Update player stats after saving a game
-            loadLeaderboard(); // Update player leaderboard after saving a game
-            loadAIStats(); // Update AI stats after saving a game
-            loadAILeaderboard(); // Update AI leaderboard after saving a game
+            refreshAllStats();
         } else {
             console.warn('Game not saved (not logged in?)');
         }
@@ -225,56 +197,42 @@ async function saveGame(winner, result) {
     }
 }
 
-// ── Load and display game history ────────────────────────────
+async function refreshAllStats() {
+    await Promise.all([
+        loadStats(),
+        loadLeaderboard(),
+        loadAIStats(),
+        loadAILeaderboard()
+    ]);
+}
+
 async function loadHistory() {
     const historyList = document.getElementById('history-list');
     if (!historyList) return;
-
     try {
         const response = await fetch('/api/games');
         if (!response.ok) {
             historyList.innerHTML = '<p>Log in to see your history.</p>';
             return;
         }
-
         const games = await response.json();
         if (games.length === 0) {
             historyList.innerHTML = '<p>No games played yet.</p>';
             return;
         }
-
         historyList.innerHTML = games.map(game => {
             const date = new Date(game.playedAt).toLocaleString();
-            const resultText = game.result === 'draw'
-                ? getRandomMessage('draw')
-                : `${game.winner} wins`;
-
-            const cells = game.board.map((cell, i) =>
-                `<span class="mini-cell" data-index="${i}">${cell}</span>`
-            ).join('');
-
-            const difficultyInfo = game.aiDifficulty ? 
-                `<div class="game-meta">Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>` : '';
-
-            return `
-                <div class="history-card">
-                    <div class="history-meta">
-                        <span class="history-result">${resultText}</span>
-                        <span class="history-date">${date}</span>
-                    </div>
-                    ${difficultyInfo}
-                    <div class="mini-board">${cells}</div>
-                </div>
-            `;
+            const resultText = game.result === 'draw' ? getRandomMessage('draw') : `${game.winner} wins`;
+            const cells = game.board.map((cell, i) => `<span class="mini-cell" data-index="${i}">${cell}</span>`).join('');
+            const difficultyInfo = game.aiDifficulty ? `<div class="game-meta">Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>` : '';
+            return `<div class="history-card"><div class="history-meta"><span class="history-result">${resultText}</span><span class="history-date">${date}</span></div>${difficultyInfo}<div class="mini-board">${cells}</div></div>`;
         }).join('');
-
     } catch (err) {
         historyList.innerHTML = '<p>Could not load history.</p>';
         console.error(err);
     }
 }
 
-// ── Load and display player stats (by difficulty + global) ───
 async function loadStats() {
     try {
         const response = await fetch('/api/stats');
@@ -282,35 +240,26 @@ async function loadStats() {
             console.warn('Not logged in or no stats available.');
             return;
         }
-
         const data = await response.json();
         const byDifficulty = data.byDifficulty || {};
         const global = data.global || { wins: 0, losses: 0, draws: 0 };
-
-        // Update stats for each difficulty
         ['easy', 'medium', 'hard'].forEach(difficulty => {
             const difficultyStats = byDifficulty[difficulty] || { wins: 0, losses: 0, draws: 0 };
             document.getElementById(`${difficulty}-wins`).textContent = difficultyStats.wins;
             document.getElementById(`${difficulty}-losses`).textContent = difficultyStats.losses;
             document.getElementById(`${difficulty}-draws`).textContent = difficultyStats.draws;
         });
-
-        // Update global stats
         document.getElementById('global-wins').textContent = global.wins;
         document.getElementById('global-losses').textContent = global.losses;
         document.getElementById('global-draws').textContent = global.draws;
-
-        // Calculate and display win rate
         const totalGames = global.wins + global.losses + global.draws;
         const winRate = totalGames > 0 ? Math.round((global.wins / totalGames) * 100) : 0;
         document.getElementById('global-win-rate').textContent = `${winRate}%`;
-
     } catch (err) {
         console.error('Error loading player stats:', err);
     }
 }
 
-// ── Load and display AI stats (global) ───────────────────────
 async function loadAIStats() {
     try {
         const response = await fetch('/api/ai-stats');
@@ -318,22 +267,17 @@ async function loadAIStats() {
             console.warn('Could not load AI stats.');
             return;
         }
-
         const data = await response.json();
         const globalAI = data.global || { wins: 0, losses: 0, draws: 0, winRate: 0 };
-
-        // Update AI global stats
         document.getElementById('ai-global-wins').textContent = globalAI.wins;
         document.getElementById('ai-global-losses').textContent = globalAI.losses;
         document.getElementById('ai-global-draws').textContent = globalAI.draws;
         document.getElementById('ai-global-win-rate').textContent = `${globalAI.winRate}%`;
-
     } catch (err) {
         console.error('Error loading AI stats:', err);
     }
 }
 
-// ── Load and display player leaderboard ──────────────────────
 async function loadLeaderboard() {
     try {
         const response = await fetch('/api/leaderboard');
@@ -341,15 +285,12 @@ async function loadLeaderboard() {
             console.warn('Could not load player leaderboard.');
             return;
         }
-
         const leaderboard = await response.json();
         const leaderboardBody = document.getElementById('leaderboard-body');
-
         if (leaderboard.length === 0) {
             leaderboardBody.innerHTML = '<tr><td colspan="5">No players on the leaderboard yet.</td></tr>';
             return;
         }
-
         leaderboardBody.innerHTML = leaderboard.map((entry, index) => `
             <tr>
                 <td>${index + 1}</td>
@@ -359,13 +300,11 @@ async function loadLeaderboard() {
                 <td>${entry.winRate}%</td>
             </tr>
         `).join('');
-
     } catch (err) {
         console.error('Error loading player leaderboard:', err);
     }
 }
 
-// ── Load and display AI leaderboard ──────────────────────────
 async function loadAILeaderboard() {
     try {
         const response = await fetch('/api/ai-leaderboard');
@@ -373,15 +312,12 @@ async function loadAILeaderboard() {
             console.warn('Could not load AI leaderboard.');
             return;
         }
-
         const aiLeaderboard = await response.json();
         const aiLeaderboardBody = document.getElementById('ai-leaderboard-body');
-
         if (aiLeaderboard.length === 0) {
             aiLeaderboardBody.innerHTML = '<tr><td colspan="6">No AI configurations on the leaderboard yet.</td></tr>';
             return;
         }
-
         aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => `
             <tr>
                 <td>${index + 1}</td>
@@ -392,23 +328,19 @@ async function loadAILeaderboard() {
                 <td>${entry.winRate}%</td>
             </tr>
         `).join('');
-
     } catch (err) {
         console.error('Error loading AI leaderboard:', err);
     }
 }
 
-// ── Reset stats for a specific difficulty ──────────────────
 async function resetStats(difficulty) {
     if (!confirm(`Are you sure you want to reset your ${difficulty} difficulty stats?`)) return;
-    
     try {
         const response = await fetch('/api/stats/reset', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ difficulty })
         });
-        
         if (response.ok) {
             loadStats();
             alert(`Stats reset for ${difficulty} difficulty!`);
@@ -421,7 +353,6 @@ async function resetStats(difficulty) {
     }
 }
 
-// ── Clear game history for the logged-in user ──────────────
 async function clearHistory() {
     if (!confirm('Are you sure you want to clear your game history?')) return;
     try {
@@ -437,13 +368,11 @@ async function clearHistory() {
     }
 }
 
-// ── Toggle AI settings visibility ────────────────────────────
 function toggleAISettings() {
     const modeSelect = document.getElementById('game-mode');
     gameMode = modeSelect.value;
     const difficultySection = document.getElementById('difficulty-section');
     const personalitySection = document.getElementById('personality-section');
-
     if (gameMode === 'ai') {
         difficultySection.style.display = 'flex';
         personalitySection.style.display = 'flex';
@@ -454,28 +383,23 @@ function toggleAISettings() {
     resetGame();
 }
 
-// ── Set AI difficulty ────────────────────────────────────────
 function setAIDifficulty() {
     const difficultySelect = document.getElementById('ai-difficulty');
     aiDifficulty = difficultySelect.value;
 }
 
-// ── Set AI personality ───────────────────────────────────────
 function setAIPersonality() {
     const personalitySelect = document.getElementById('ai-personality');
     aiPersonality = personalitySelect.value;
 }
 
-// ── Cell click handler ────────────────────────────────────────
 function handleCellClick(e) {
     if (gameMode === 'ai' && currentPlayer === 'O') return;
     const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
-
     board[index] = currentPlayer;
     e.target.textContent = currentPlayer;
     e.target.classList.add('taken');
-
     const winner = checkWinner();
     if (winner) {
         gameOver = true;
@@ -490,41 +414,31 @@ function handleCellClick(e) {
         saveGame(null, 'draw');
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-            ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking'))
-            : `Player ${currentPlayer}'s Turn`;
-
+        document.getElementById('turn-indicator').textContent = gameMode === 'ai' ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking')) : `Player ${currentPlayer}'s Turn`;
         if (gameMode === 'ai' && currentPlayer === 'O') {
             setTimeout(makeAIMove, 500);
         }
     }
 }
 
-// ── Reset the board ───────────────────────────────────────────
 function resetGame() {
     board = ['', '', '', '', '', '', '', '', ''];
     currentPlayer = 'X';
     gameOver = false;
-
     document.querySelectorAll('.cell').forEach(cell => {
         cell.textContent = '';
         cell.classList.remove('taken', 'winner');
     });
-
-    document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-        ? getRandomMessage('turn')
-        : "Player X's Turn";
+    document.getElementById('turn-indicator').textContent = gameMode === 'ai' ? getRandomMessage('turn') : "Player X's Turn";
     document.getElementById('game-status').textContent = '';
 }
 
-// ── Attach click listeners to every cell ─────────────────────
 function initBoard() {
     document.querySelectorAll('.cell').forEach(cell => {
         cell.addEventListener('click', handleCellClick);
     });
 }
 
-// ── Auth ──────────────────────────────────────────────────────
 window.onload = async () => {
     initBoard();
     const response = await fetch('/api/me');
@@ -577,9 +491,6 @@ function showGame(username) {
     document.getElementById('game-section').style.display = 'block';
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
     loadHistory();
-    loadStats(); // Load player stats when game section is shown
-    loadLeaderboard(); // Load player leaderboard when game section is shown
-    loadAIStats(); // Load AI stats when game section is shown
-    loadAILeaderboard(); // Load AI leaderboard when game section is shown
+    refreshAllStats();
     toggleAISettings();
 }

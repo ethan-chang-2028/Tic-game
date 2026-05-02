@@ -71,7 +71,7 @@
 
         <!-- CP08-stats: Global Stats and Leaderboard -->
         <div id="CP08-stats">
-            <!-- Global Stats -->
+            <!-- Player Global Stats -->
             <section id="global-stats-section">
                 <h3>Your Global Stats</h3>
                 <div id="global-stats-container">
@@ -112,9 +112,9 @@
                 </div>
             </section>
 
-            <!-- Leaderboard -->
+            <!-- Player Leaderboard -->
             <section id="leaderboard-section">
-                <h3>🏆 Leaderboard (Top 10 Players)</h3>
+                <h3>🏆 Player Leaderboard (Top 10)</h3>
                 <div id="leaderboard-container">
                     <table id="leaderboard-table">
                         <thead>
@@ -128,6 +128,41 @@
                         </thead>
                         <tbody id="leaderboard-body">
                             <tr><td colspan="5">Loading leaderboard...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- AI Global Stats -->
+            <section id="ai-global-stats-section">
+                <h3>AI Global Stats</h3>
+                <div id="ai-global-stats-container">
+                    <div class="global-stat-card">
+                        <p>Total AI Wins: <span class="global-stat-value" id="ai-global-wins">0</span></p>
+                        <p>Total AI Losses: <span class="global-stat-value" id="ai-global-losses">0</span></p>
+                        <p>Total AI Draws: <span class="global-stat-value" id="ai-global-draws">0</span></p>
+                        <p>AI Win Rate: <span class="global-stat-value" id="ai-global-win-rate">0%</span></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI Leaderboard -->
+            <section id="ai-leaderboard-section">
+                <h3>🤖 AI Leaderboard (Top AI Configurations)</h3>
+                <div id="ai-leaderboard-container">
+                    <table id="ai-leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Difficulty</th>
+                                <th>Personality</th>
+                                <th>Total Wins</th>
+                                <th>Total Games</th>
+                                <th>Win Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-leaderboard-body">
+                            <tr><td colspan="6">Loading AI leaderboard...</td></tr>
                         </tbody>
                     </table>
                 </div>

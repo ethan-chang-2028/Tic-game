@@ -18,6 +18,7 @@ app.use(session({
 
 const usersFilePath = path.join(__dirname, 'data', 'users.json');
 const gamesFilePath = path.join(__dirname, 'data', 'games.json');
+const statsFilePath = path.join(__dirname, 'data', 'stats.json');
 
 // Initialize JSON files if they don't exist
 const initDataFiles = () => {
@@ -25,6 +26,7 @@ const initDataFiles = () => {
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
     if (!fs.existsSync(usersFilePath)) fs.writeFileSync(usersFilePath, '[]');
     if (!fs.existsSync(gamesFilePath)) fs.writeFileSync(gamesFilePath, '[]');
+    if (!fs.existsSync(statsFilePath)) fs.writeFileSync(statsFilePath, '{}');
 };
 initDataFiles();
 
@@ -48,6 +50,17 @@ function saveGames(games) {
     const dataDir = path.join(__dirname, 'data');
     if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
     fs.writeFileSync(gamesFilePath, JSON.stringify(games, null, 2));
+}
+
+function getStats() {
+    if (!fs.existsSync(statsFilePath)) return {};
+    return JSON.parse(fs.readFileSync(statsFilePath, 'utf8'));
+}
+
+function saveStats(stats) {
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+    fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
 
 // --- AUTH ROUTES ---
@@ -100,7 +113,7 @@ app.post('/api/games', (req, res) => {
         return res.status(401).json({ error: 'Must be logged in to save a game.' });
     }
 
-    const { winner, result, board } = req.body;
+    const { winner, result, board, aiDifficulty, aiPersonality } = req.body;
 
     if (!result || !board) {
         return res.status(400).json({ error: 'Missing required game data.' });
@@ -114,11 +127,34 @@ app.post('/api/games', (req, res) => {
         winner: winner || null,
         result: result,
         board: board,
+        aiDifficulty: aiDifficulty || null,
+        aiPersonality: aiPersonality || 'neutral',
         playedAt: new Date().toISOString()
     };
 
     games.push(newGame);
     saveGames(games);
+
+    // Update stats if it's an AI game
+    if (aiDifficulty) {
+        const stats = getStats();
+        if (!stats[req.session.username]) {
+            stats[req.session.username] = {};
+        }
+        if (!stats[req.session.username][aiDifficulty]) {
+            stats[req.session.username][aiDifficulty] = { wins: 0, losses: 0, draws: 0 };
+        }
+
+        if (winner === 'O') {
+            stats[req.session.username][aiDifficulty].losses++;
+        } else if (winner === 'X') {
+            stats[req.session.username][aiDifficulty].wins++;
+        } else if (result === 'draw') {
+            stats[req.session.username][aiDifficulty].draws++;
+        }
+
+        saveStats(stats);
+    }
 
     res.status(201).json({ message: 'Game saved!', game: newGame });
 });
@@ -148,6 +184,47 @@ app.delete('/api/games', (req, res) => {
     saveGames(games);
 
     res.json({ message: 'History cleared!' });
+});
+
+// Get stats for the logged-in user, separated by difficulty
+app.get('/api/stats', (req, res) => {
+    if (!req.session.username) {
+        return res.status(401).json({ error: 'Must be logged in to view stats.' });
+    }
+
+    const stats = getStats();
+    const userStats = stats[req.session.username] || {};
+
+    // Ensure all difficulties are present, even if no games played yet
+    const allDifficulties = ['easy', 'medium', 'hard'];
+    allDifficulties.forEach(difficulty => {
+        if (!userStats[difficulty]) {
+            userStats[difficulty] = { wins: 0, losses: 0, draws: 0 };
+        }
+    });
+
+    res.json(userStats);
+});
+
+// Reset stats for a specific difficulty
+app.post('/api/stats/reset', (req, res) => {
+    if (!req.session.username) {
+        return res.status(401).json({ error: 'Must be logged in to reset stats.' });
+    }
+
+    const { difficulty } = req.body;
+    if (!difficulty || !['easy', 'medium', 'hard'].includes(difficulty)) {
+        return res.status(400).json({ error: 'Invalid difficulty.' });
+    }
+
+    const stats = getStats();
+    if (!stats[req.session.username]) {
+        stats[req.session.username] = {};
+    }
+    stats[req.session.username][difficulty] = { wins: 0, losses: 0, draws: 0 };
+    saveStats(stats);
+
+    res.json({ message: `Stats reset for ${difficulty} difficulty!` });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

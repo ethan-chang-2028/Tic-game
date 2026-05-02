@@ -134,22 +134,23 @@ app.post('/api/games', (req, res) => {
 
     const games = getGames();
 
+    // Always include aiDifficulty and aiPersonality in the saved game
     const newGame = {
         id: Date.now(),
         playedBy: req.session.username,
         winner: winner || null,
         result: result,
         board: board,
-        aiDifficulty: aiDifficulty || null,
-        aiPersonality: aiPersonality || 'neutral',
+        aiDifficulty: aiDifficulty || null,  // Explicitly set to null if not provided
+        aiPersonality: aiPersonality || 'neutral',  // Default to 'neutral' if not provided
         playedAt: new Date().toISOString()
     };
 
     games.push(newGame);
     saveGames(games);
 
-    // Update player stats if it's an AI game
-    if (aiDifficulty) {
+    // Update player stats if it's an AI game (aiDifficulty is not null)
+    if (aiDifficulty !== null) {
         const stats = getStats();
         if (!stats[req.session.username]) {
             stats[req.session.username] = {};

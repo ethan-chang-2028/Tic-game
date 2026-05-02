@@ -214,6 +214,7 @@ async function saveGame(winner, result) {
         if (response.ok) {
             loadHistory();
             loadStats(); // Update stats after saving a game
+            loadLeaderboard(); // Update leaderboard after saving a game
         } else {
             console.warn('Game not saved (not logged in?)');
         }
@@ -271,7 +272,7 @@ async function loadHistory() {
     }
 }
 
-// ── Load and display stats by difficulty ────────────────────
+// ── Load and display stats (by difficulty + global) ─────────
 async function loadStats() {
     try {
         const response = await fetch('/api/stats');
@@ -280,17 +281,62 @@ async function loadStats() {
             return;
         }
 
-        const stats = await response.json();
-        
+        const data = await response.json();
+        const byDifficulty = data.byDifficulty || {};
+        const global = data.global || { wins: 0, losses: 0, draws: 0 };
+
         // Update stats for each difficulty
         ['easy', 'medium', 'hard'].forEach(difficulty => {
-            const difficultyStats = stats[difficulty] || { wins: 0, losses: 0, draws: 0 };
+            const difficultyStats = byDifficulty[difficulty] || { wins: 0, losses: 0, draws: 0 };
             document.getElementById(`${difficulty}-wins`).textContent = difficultyStats.wins;
             document.getElementById(`${difficulty}-losses`).textContent = difficultyStats.losses;
             document.getElementById(`${difficulty}-draws`).textContent = difficultyStats.draws;
         });
+
+        // Update global stats
+        document.getElementById('global-wins').textContent = global.wins;
+        document.getElementById('global-losses').textContent = global.losses;
+        document.getElementById('global-draws').textContent = global.draws;
+
+        // Calculate and display win rate
+        const totalGames = global.wins + global.losses + global.draws;
+        const winRate = totalGames > 0 ? Math.round((global.wins / totalGames) * 100) : 0;
+        document.getElementById('global-win-rate').textContent = `${winRate}%`;
+
     } catch (err) {
         console.error('Error loading stats:', err);
+    }
+}
+
+// ── Load and display leaderboard ────────────────────────────
+async function loadLeaderboard() {
+    try {
+        const response = await fetch('/api/leaderboard');
+        if (!response.ok) {
+            console.warn('Could not load leaderboard.');
+            return;
+        }
+
+        const leaderboard = await response.json();
+        const leaderboardBody = document.getElementById('leaderboard-body');
+
+        if (leaderboard.length === 0) {
+            leaderboardBody.innerHTML = '<tr><td colspan="5">No players on the leaderboard yet.</td></tr>';
+            return;
+        }
+
+        leaderboardBody.innerHTML = leaderboard.map((entry, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${entry.username}</td>
+                <td>${entry.totalWins}</td>
+                <td>${entry.totalGames}</td>
+                <td>${entry.winRate}%</td>
+            </tr>
+        `).join('');
+
+    } catch (err) {
+        console.error('Error loading leaderboard:', err);
     }
 }
 
@@ -474,5 +520,6 @@ function showGame(username) {
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
     loadHistory();
     loadStats(); // Load stats when game section is shown
+    loadLeaderboard(); // Load leaderboard when game section is shown
     toggleAISettings();
 }

@@ -199,20 +199,27 @@ body {
   margin-bottom: 30px;
 }
 
-#global-stats-section {
+#global-stats-section,
+#ai-global-stats-section,
+#stats-section,
+#leaderboard-section,
+#ai-leaderboard-section {
   margin-bottom: 30px;
 }
 
 #global-stats-section h3,
+#ai-global-stats-section h3,
 #stats-section h3,
-#leaderboard-section h3 {
+#leaderboard-section h3,
+#ai-leaderboard-section h3 {
   font-size: 1.2rem;
   margin-bottom: 15px;
   text-align: center;
   color: #2c3e50;
 }
 
-#global-stats-container {
+#global-stats-container,
+#ai-global-stats-container {
   display: flex;
   justify-content: center;
 }
@@ -238,10 +245,6 @@ body {
 }
 
 /* ── Stats Section ── */
-#stats-section {
-  margin-bottom: 30px;
-}
-
 #stats-container {
   display: flex;
   justify-content: space-around;
@@ -294,16 +297,14 @@ body {
 }
 
 /* ── Leaderboard Section ── */
-#leaderboard-section {
-  margin-bottom: 30px;
-}
-
-#leaderboard-container {
+#leaderboard-container,
+#ai-leaderboard-container {
   width: 100%;
   overflow-x: auto;
 }
 
-#leaderboard-table {
+#leaderboard-table,
+#ai-leaderboard-table {
   width: 100%;
   border-collapse: collapse;
   background: white;
@@ -313,37 +314,45 @@ body {
 }
 
 #leaderboard-table th,
-#leaderboard-table td {
+#leaderboard-table td,
+#ai-leaderboard-table th,
+#ai-leaderboard-table td {
   padding: 12px 15px;
   text-align: left;
   border-bottom: 1px solid #ddd;
 }
 
-#leaderboard-table th {
+#leaderboard-table th,
+#ai-leaderboard-table th {
   background-color: #3498db;
   color: white;
   font-weight: bold;
 }
 
-#leaderboard-table tr:nth-child(even) {
+#leaderboard-table tr:nth-child(even),
+#ai-leaderboard-table tr:nth-child(even) {
   background-color: #f2f2f2;
 }
 
-#leaderboard-table tr:hover {
+#leaderboard-table tr:hover,
+#ai-leaderboard-table tr:hover {
   background-color: #e3f2fd;
 }
 
-#leaderboard-body tr:first-child td {
+#leaderboard-body tr:first-child td,
+#ai-leaderboard-body tr:first-child td {
   font-weight: bold;
   color: #ff9800;
 }
 
-#leaderboard-body tr:nth-child(2) td {
+#leaderboard-body tr:nth-child(2) td,
+#ai-leaderboard-body tr:nth-child(2) td {
   font-weight: bold;
   color: #757575;
 }
 
-#leaderboard-body tr:nth-child(3) td {
+#leaderboard-body tr:nth-child(3) td,
+#ai-leaderboard-body tr:nth-child(3) td {
   font-weight: bold;
   color: #cd7f32;
 }

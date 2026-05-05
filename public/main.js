@@ -9,7 +9,6 @@ let aiPersonality = null;
 // ── Ultimate Tic Tac Toe state ──────────────────────────────
 let largeBoard = ['', '', '', '', '', '', '', '', '']; // Tracks winner of each small board
 let smallBoards = Array(9).fill().map(() => Array(9).fill('')); // 9 small boards, each with 9 cells
-let activeLargeIndex = null; // The small board where the next move must be played
 let ultimateGameOver = false;
 
 const WIN_COMBOS = [
@@ -232,32 +231,12 @@ function isLargeBoardDrawn() {
     return largeBoard.every(cell => cell !== '');
 }
 
-// ── Ultimate Tic Tac Toe: Update the active small board ────────
-function updateActiveBoard(lastSmallIndex) {
-    if (lastSmallIndex === null || lastSmallIndex === undefined) {
-        activeLargeIndex = null; // First move: any board is active
-    } else {
-        const targetBoard = smallBoards[lastSmallIndex];
-        if (isSmallBoardFinished(lastSmallIndex)) {
-            activeLargeIndex = null; // If the target board is finished, any board is active
-        } else {
-            activeLargeIndex = lastSmallIndex;
-        }
-    }
-}
-
 // ── Ultimate Tic Tac Toe: Handle small cell click ────────────
 function handleSmallCellClick(e) {
     if (gameMode !== 'ultimate' || ultimateGameOver) return;
     
     const largeIndex = parseInt(e.target.getAttribute('data-large-index'));
     const smallIndex = parseInt(e.target.getAttribute('data-small-index'));
-    
-    // Check if the click is in the active board (or any board if no active board)
-    if (activeLargeIndex !== null && largeIndex !== activeLargeIndex) {
-        alert(`You must play in the board corresponding to your last move's position!`);
-        return;
-    }
     
     // Check if the small board is already won
     if (isSmallBoardFinished(largeIndex)) {
@@ -307,22 +286,9 @@ function handleSmallCellClick(e) {
         document.getElementById('game-status').textContent = 'Ultimate Game is a draw!';
         saveGame(null, 'Ultimate Tic Tac Toe draw');
     } else {
-        // Switch player and update active board
+        // Switch player
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        updateActiveBoard(smallIndex);
-        
-        // Highlight the active board
-        document.querySelectorAll('.large-cell').forEach(cell => {
-            cell.classList.remove('active');
-        });
-        if (activeLargeIndex !== null) {
-            const activeLargeCell = document.querySelector(`.large-cell[data-large-index="${activeLargeIndex}"]`);
-            if (activeLargeCell) {
-                activeLargeCell.classList.add('active');
-            }
-        }
-        
-        document.getElementById('turn-indicator').textContent = `Player ${currentPlayer}'s Turn`;
+        document.getElementById('turn-indicator').textContent = `Player ${currentPlayer}'s Turn (Any Board)`;
     }
 }
 
@@ -677,7 +643,6 @@ function resetGame() {
     // Reset ultimate board
     largeBoard = ['', '', '', '', '', '', '', '', ''];
     smallBoards = Array(9).fill().map(() => Array(9).fill(''));
-    activeLargeIndex = null;
 
     // Reset UI for standard board
     document.querySelectorAll('#standard-board .cell').forEach(cell => {

@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe</title>
+    <title>Ultimate Tic Tac Toe</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Tic Tac Toe</h1>
+    <h1>Ultimate Tic Tac Toe</h1>
 
     <!-- AUTH -->
     <div id="auth-section">
@@ -27,10 +27,10 @@
         <div id="CP07-levels">
             <div id="game-mode-section">
                 <label for="game-mode">Game Mode:</label>
-                <select id="game-mode" onchange="toggleAISettings()">
+                <select id="game-mode" onchange="toggleGameMode()">
                     <option value="pvp">Player vs Player</option>
                     <option value="ai">Player vs AI</option>
-                    <option value="ai-vs-ai">AI vs AI</option>
+                    <option value="ultimate">Ultimate Tic Tac Toe</option>
                 </select>
             </div>
 
@@ -51,14 +51,13 @@
                     <option value="psychologist">Psychologist</option>
                 </select>
             </div>
-
-            <button id="ai-vs-ai-btn" onclick="startAIVsAI()" style="display: none; margin-top: 10px;">Start AI vs AI</button>
         </div>
 
         <p id="turn-indicator">Player X's Turn</p>
         <p id="game-status"></p>
 
-        <div id="game-board" class="board">
+        <!-- Standard Tic Tac Toe Board (for PvP and AI modes) -->
+        <div id="standard-board" class="board">
             <div class="cell" data-index="0"></div>
             <div class="cell" data-index="1"></div>
             <div class="cell" data-index="2"></div>
@@ -68,6 +67,139 @@
             <div class="cell" data-index="6"></div>
             <div class="cell" data-index="7"></div>
             <div class="cell" data-index="8"></div>
+        </div>
+
+        <!-- Ultimate Tic Tac Toe Board (3x3 grid of 3x3 boards) -->
+        <div id="ultimate-board" style="display: none;">
+            <div class="ultimate-grid">
+                <!-- Large board cells (each contains a small board) -->
+                <div class="large-cell" data-large-index="0">
+                    <div class="small-board" data-large-index="0">
+                        <div class="small-cell" data-large-index="0" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="0" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="1">
+                    <div class="small-board" data-large-index="1">
+                        <div class="small-cell" data-large-index="1" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="1" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="2">
+                    <div class="small-board" data-large-index="2">
+                        <div class="small-cell" data-large-index="2" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="2" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="3">
+                    <div class="small-board" data-large-index="3">
+                        <div class="small-cell" data-large-index="3" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="3" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="4">
+                    <div class="small-board" data-large-index="4">
+                        <div class="small-cell" data-large-index="4" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="4" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="5">
+                    <div class="small-board" data-large-index="5">
+                        <div class="small-cell" data-large-index="5" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="5" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="6">
+                    <div class="small-board" data-large-index="6">
+                        <div class="small-cell" data-large-index="6" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="6" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="7">
+                    <div class="small-board" data-large-index="7">
+                        <div class="small-cell" data-large-index="7" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="7" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+                <div class="large-cell" data-large-index="8">
+                    <div class="small-board" data-large-index="8">
+                        <div class="small-cell" data-large-index="8" data-small-index="0"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="1"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="2"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="3"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="4"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="5"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="6"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="7"></div>
+                        <div class="small-cell" data-large-index="8" data-small-index="8"></div>
+                    </div>
+                    <div class="large-cell-winner"></div>
+                </div>
+            </div>
         </div>
 
         <button id="reset-btn" onclick="resetGame()">New Game</button>

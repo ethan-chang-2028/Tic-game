@@ -57,22 +57,22 @@ function highlightWinner(boardType, boardIndex = null) {
 // ── AI Personalities with Varied Responses ────────────────────
 const personalities = {
     neutral: {
-        win: [" wins! 🎉", " wins! Good game!", " wins! Try again!", " wins! You'll get it next time!"],
-        lose: ["You got me this time...", "Nice move!", "Well played!", "I'll get you next time!"],
+        aiWin: ["AI wins! 🎉", "AI wins! Good game!", "AI wins! Try again!", "AI wins! You'll get it next time!"],
+        playerWin: ["You got me this time...", "Nice move!", "Well played!", "I'll get you next time!", "You won this round!", "Good strategy!"],
         draw: ["It's a draw! 🤝", "A tie! Close game!", "Draw! Want a rematch?", "No winner this time!"],
         thinking: ["AI is thinking...", "Calculating...", "Making a move...", "Processing..."],
         turn: ["Your Turn", "Your move", "Go ahead", "Make your move"]
     },
     mathematician: {
-        win: [" wins by the power of logic! ∫√∑", " wins! The numbers don't lie.", " wins! A calculated victory.", " wins! x + y = victory!"],
-        lose: ["Your strategy was... unexpected. Recalculating...", "An anomaly in the data!", "I need to recalibrate my algorithms.", "That was statistically unlikely!"],
+        aiWin: ["AI wins by the power of logic! ∫√∑", "AI wins! The numbers don't lie.", "AI wins! A calculated victory.", "AI wins! x + y = victory!"],
+        playerWin: ["Your strategy was... unexpected. Recalculating...", "An anomaly in the data!", "I need to recalibrate my algorithms.", "That was statistically unlikely!", "My calculations were off by a factor of π!", "You found the flaw in my logic matrix!"],
         draw: ["A perfect equilibrium! 1-1=0", "The game is in balance.", "A draw! The math checks out.", "Symmetry achieved!"],
         thinking: ["Calculating optimal move...", "Running simulations...", "Solving the equation...", "Analyzing probabilities..."],
         turn: ["Your move, human.", "Input your coordinates.", "What's your next variable?", "Your turn to solve."]
     },
     psychologist: {
-        win: [" wins! I knew you'd pick that spot. 😉", " wins! Your patterns are predictable.", " wins! I'm inside your head.", " wins! Did you see that coming?"],
-        lose: ["Interesting... you outsmarted me. Let's analyze that.", "Fascinating choice! Tell me more.", "Your subconscious led you well.", "I didn't expect that. Well done!"],
+        aiWin: ["AI wins! I knew you'd pick that spot. 😉", "AI wins! Your patterns are predictable.", "AI wins! I'm inside your head.", "AI wins! Did you see that coming?"],
+        playerWin: ["Interesting... you outsmarted me. Let's analyze that.", "Fascinating choice! Tell me more.", "Your subconscious led you well.", "I didn't expect that. Well done!", "Your psychological profile is more complex than I calculated!", "You broke my behavioral prediction model!"],
         draw: ["A stalemate. Your subconscious is strong.", "A draw! We're equally matched.", "No winner. The mind is complex.", "A tie. What were you thinking?"],
         thinking: ["Analyzing your patterns...", "Reading your mind...", "Predicting your next move...", "Studying your behavior..."],
         turn: ["What's your next move?", "Show me your strategy.", "Where will you go?", "Your turn to reveal yourself."]
@@ -82,18 +82,54 @@ const personalities = {
 function getRandomMessage(type, winner) {
     const p = personalities[aiPersonality];
     if (!p) return '';
-    const messages = p[type];
+    
+    // For ultimate mode, use neutral personality if none set
+    const personality = gameMode === 'ultimate' || gameMode === 'ultimate-ai' ? p : personalities[aiPersonality];
+    const messages = personality[type];
     if (!messages || messages.length === 0) return '';
+    
     const randomIndex = Math.floor(Math.random() * messages.length);
     let message = messages[randomIndex];
+    
+    if (type === 'aiWin') {
+        return message;
+    }
+    if (type === 'playerWin') {
+        return message;
+    }
     if (type === 'win') {
+        // Backward compatibility - map to aiWin or playerWin
         if (winner === 'O') {
-            return `AI${message}`;
+            return personalities[aiPersonality]?.aiWin?.[randomIndex] || `AI${message}`;
         } else {
-            return `Player ${winner}${message}`;
+            return personalities[aiPersonality]?.playerWin?.[randomIndex] || `Player ${winner}${message}`;
         }
     }
+    if (type === 'draw') {
+        return message;
+    }
+    
     return message;
+}
+
+// Helper to get player win message based on AI personality
+function getPlayerWinMessage() {
+    const p = personalities[aiPersonality] || personalities.neutral;
+    if (!p || !p.playerWin || p.playerWin.length === 0) {
+        return "You win! Well played!";
+    }
+    const randomIndex = Math.floor(Math.random() * p.playerWin.length);
+    return p.playerWin[randomIndex];
+}
+
+// Helper to get AI win message based on AI personality
+function getAIWinMessage() {
+    const p = personalities[aiPersonality] || personalities.neutral;
+    if (!p || !p.aiWin || p.aiWin.length === 0) {
+        return "AI wins! 🎉";
+    }
+    const randomIndex = Math.floor(Math.random() * p.aiWin.length);
+    return p.aiWin[randomIndex];
 }
 
 // ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
@@ -189,7 +225,7 @@ function makeAIMove() {
         if (winner) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = getRandomMessage('win', winner);
+            document.getElementById('game-status').textContent = winner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
             highlightWinner('standard');
             saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
         } else if (checkDraw(board)) {
@@ -315,12 +351,12 @@ function makeUltimateAIMove() {
         if (largeWinner) {
             ultimateGameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = `AI wins the Ultimate Game! 🎉`;
-            saveGame(largeWinner, 'AI wins Ultimate Tic Tac Toe');
+            document.getElementById('game-status').textContent = largeWinner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
+            saveGame(largeWinner, largeWinner === 'O' ? 'AI wins' : 'Player wins');
         } else if (isLargeBoardDrawn()) {
             ultimateGameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = 'Ultimate Game is a draw!';
+            document.getElementById('game-status').textContent = getRandomMessage('draw');
             saveGame(null, 'Ultimate Tic Tac Toe draw');
         } else {
             currentPlayer = 'X';
@@ -353,12 +389,12 @@ function handleSmallCellClick(e) {
     if (largeWinner) {
         ultimateGameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = `Player ${largeWinner} wins the Ultimate Game! 🎉`;
+        document.getElementById('game-status').textContent = largeWinner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
         saveGame(largeWinner, `${largeWinner} wins Ultimate Tic Tac Toe`);
     } else if (isLargeBoardDrawn()) {
         ultimateGameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = 'Ultimate Game is a draw!';
+        document.getElementById('game-status').textContent = getRandomMessage('draw');
         saveGame(null, 'Ultimate Tic Tac Toe draw');
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
@@ -370,7 +406,6 @@ function handleSmallCellClick(e) {
 // ── Save a finished game to the server with gameMode for leaderboard filtering ───────────────────────
 async function saveGame(winner, result) {
     try {
-        // Determine if it's an AI game for proper classification
         const isAIGame = gameMode === 'ai' || gameMode === 'ultimate-ai';
         
         const response = await fetch('/api/games', {
@@ -380,10 +415,9 @@ async function saveGame(winner, result) {
                 winner,
                 result,
                 board: (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? { largeBoard, smallBoards } : board,
-                gameMode: gameMode, // Always include gameMode for leaderboard filtering
+                gameMode: gameMode,
                 aiDifficulty: isAIGame ? aiDifficulty : null,
                 aiPersonality: isAIGame ? aiPersonality : null,
-                // Add timestamp for history
                 playedAt: new Date().toISOString()
             })
         });
@@ -433,7 +467,6 @@ async function loadHistory() {
             const date = new Date(game.playedAt).toLocaleString();
             const resultText = game.result === 'draw' ? 'Draw' : `${game.winner} wins`;
             
-            // Get game mode display name
             const gameModeDisplay = {
                 'pvp': 'Player vs Player',
                 'ai': 'Player vs AI',
@@ -502,7 +535,6 @@ async function loadAIStats() {
     }
 }
 
-// Load player leaderboard (combined)
 async function loadLeaderboard() {
     try {
         const response = await fetch('/api/leaderboard');
@@ -524,7 +556,6 @@ async function loadLeaderboard() {
     }
 }
 
-// Load player leaderboard separated by game mode
 async function loadLeaderboardByMode() {
     try {
         const response = await fetch('/api/leaderboard/by-mode');
@@ -538,15 +569,12 @@ async function loadLeaderboardByMode() {
             leaderboardBody.innerHTML = '<tr><td colspan="6">No players on the leaderboard yet.</td></tr>'; 
             return; 
         }
-        
-        // Map gameMode to display name
         const gameModeNames = {
             'pvp': 'PvP',
             'ai': 'vs AI',
             'ultimate': 'Ultimate PvP',
             'ultimate-ai': 'Ultimate vs AI'
         };
-        
         leaderboardBody.innerHTML = leaderboard.map((entry, index) => {
             const modeDisplay = gameModeNames[entry.gameMode] || entry.gameMode;
             return `
@@ -558,7 +586,6 @@ async function loadLeaderboardByMode() {
     }
 }
 
-// Load AI leaderboard (combined)
 async function loadAILeaderboard() {
     try {
         const response = await fetch('/api/ai-leaderboard');
@@ -580,7 +607,6 @@ async function loadAILeaderboard() {
     }
 }
 
-// Load AI leaderboard separated by game mode
 async function loadAILeaderboardByMode() {
     try {
         const response = await fetch('/api/ai-leaderboard/by-mode');
@@ -594,13 +620,10 @@ async function loadAILeaderboardByMode() {
             aiLeaderboardBody.innerHTML = '<tr><td colspan="7">No AI configurations on the leaderboard yet.</td></tr>'; 
             return; 
         }
-        
-        // Map gameMode to display name
         const gameModeNames = {
             'ai': 'Standard vs AI',
             'ultimate-ai': 'Ultimate vs AI'
         };
-        
         aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => {
             const modeDisplay = gameModeNames[entry.gameMode] || entry.gameMode;
             return `
@@ -712,7 +735,7 @@ function handleCellClick(e) {
     if (winner) { 
         gameOver = true; 
         document.getElementById('turn-indicator').textContent = ''; 
-        document.getElementById('game-status').textContent = getRandomMessage('win', winner); 
+        document.getElementById('game-status').textContent = winner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
         highlightWinner('standard'); 
         saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
     } else if (checkDraw(board)) { 

@@ -205,7 +205,7 @@
 
         <button id="reset-btn" onclick="resetGame()">New Game</button>
 
-        <!-- CP08-stats: Global Stats and Leaderboard -->
+        <!-- CP08-stats: Global Stats and Leaderboards -->
         <div id="CP08-stats">
             <div class="stats-header">
                 <h2>📊 Game Statistics</h2>
@@ -253,9 +253,31 @@
                 </div>
             </section>
 
-            <!-- Player Leaderboard -->
+            <!-- Player Leaderboard (Separated by Game Mode) -->
+            <section id="leaderboard-by-mode-section">
+                <h3>🏆 Player Leaderboard (By Game Mode)</h3>
+                <div id="leaderboard-by-mode-container">
+                    <table id="leaderboard-by-mode-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Game Mode</th>
+                                <th>Total Wins</th>
+                                <th>Total Games</th>
+                                <th>Win Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboard-by-mode-body">
+                            <tr><td colspan="6">Loading leaderboard by mode...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Player Leaderboard (Combined) -->
             <section id="leaderboard-section">
-                <h3>🏆 Player Leaderboard (Top 10)</h3>
+                <h3>🏆 Player Leaderboard (All Modes Combined)</h3>
                 <div id="leaderboard-container">
                     <table id="leaderboard-table">
                         <thead>
@@ -287,9 +309,32 @@
                 </div>
             </section>
 
-            <!-- AI Leaderboard -->
+            <!-- AI Leaderboard (Separated by Game Mode) -->
+            <section id="ai-leaderboard-by-mode-section">
+                <h3>🤖 AI Leaderboard (By Game Mode)</h3>
+                <div id="ai-leaderboard-by-mode-container">
+                    <table id="ai-leaderboard-by-mode-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Difficulty</th>
+                                <th>Personality</th>
+                                <th>Game Mode</th>
+                                <th>Total Wins</th>
+                                <th>Total Games</th>
+                                <th>Win Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-leaderboard-by-mode-body">
+                            <tr><td colspan="7">Loading AI leaderboard by mode...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- AI Leaderboard (Combined) -->
             <section id="ai-leaderboard-section">
-                <h3>🤖 AI Leaderboard (Top AI Configurations)</h3>
+                <h3>🤖 AI Leaderboard (All Modes Combined)</h3>
                 <div id="ai-leaderboard-container">
                     <table id="ai-leaderboard-table">
                         <thead>

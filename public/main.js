@@ -79,14 +79,17 @@ const personalities = {
     }
 };
 
-// Helper to get player win message based on AI personality (or neutral for PvP)
+// Helper to get the effective personality for messages
+function getEffectivePersonality() {
+    if (gameMode === 'ai' || gameMode === 'ultimate-ai') {
+        return aiPersonality || 'neutral';
+    }
+    return 'neutral'; // PvP modes use neutral
+}
+
+// Helper to get player win message (AI loses)
 function getPlayerWinMessage() {
-    // For PvP mode, use neutral personality
-    const effectivePersonality = (gameMode === 'ai' || gameMode === 'ultimate-ai') 
-        ? (aiPersonality || 'neutral') 
-        : 'neutral';
-    
-    const p = personalities[effectivePersonality] || personalities.neutral;
+    const p = personalities[getEffectivePersonality()] || personalities.neutral;
     if (!p || !p.playerWin || p.playerWin.length === 0) {
         return "You win! Well played!";
     }
@@ -94,9 +97,9 @@ function getPlayerWinMessage() {
     return p.playerWin[randomIndex];
 }
 
-// Helper to get AI win message based on AI personality
+// Helper to get AI win message
 function getAIWinMessage() {
-    const p = personalities[aiPersonality] || personalities.neutral;
+    const p = personalities[getEffectivePersonality()] || personalities.neutral;
     if (!p || !p.aiWin || p.aiWin.length === 0) {
         return "AI wins! 🎉";
     }
@@ -106,24 +109,14 @@ function getAIWinMessage() {
 
 // Backward compatible getRandomMessage for other message types
 function getRandomMessage(type, winner) {
-    const p = personalities[aiPersonality] || personalities.neutral;
+    const p = personalities[getEffectivePersonality()] || personalities.neutral;
     if (!p) return '';
     
     const messages = p[type];
     if (!messages || messages.length === 0) return '';
     
     const randomIndex = Math.floor(Math.random() * messages.length);
-    let message = messages[randomIndex];
-    
-    if (type === 'win') {
-        if (winner === 'O') {
-            return p.aiWin ? p.aiWin[randomIndex % p.aiWin.length] : `AI${message}`;
-        } else {
-            return p.playerWin ? p.playerWin[randomIndex % p.playerWin.length] : `Player ${winner}${message}`;
-        }
-    }
-    
-    return message;
+    return messages[randomIndex];
 }
 
 // ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
@@ -219,7 +212,12 @@ function makeAIMove() {
         if (winner) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = winner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
+            // In AI mode: O is AI, X is player
+            // In PvP mode: both are players, so never show AI win
+            const isAIWinner = (gameMode === 'ai' || gameMode === 'ultimate-ai') && winner === 'O';
+            document.getElementById('game-status').textContent = isAIWinner 
+                ? getAIWinMessage() 
+                : getPlayerWinMessage();
             highlightWinner('standard');
             saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
         } else if (checkDraw(board)) {
@@ -345,7 +343,10 @@ function makeUltimateAIMove() {
         if (largeWinner) {
             ultimateGameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = largeWinner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
+            const isAIWinner = gameMode === 'ultimate-ai' && largeWinner === 'O';
+            document.getElementById('game-status').textContent = isAIWinner 
+                ? getAIWinMessage() 
+                : getPlayerWinMessage();
             saveGame(largeWinner, largeWinner === 'O' ? 'AI wins' : 'Player wins');
         } else if (isLargeBoardDrawn()) {
             ultimateGameOver = true;
@@ -383,7 +384,10 @@ function handleSmallCellClick(e) {
     if (largeWinner) {
         ultimateGameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = largeWinner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
+        const isAIWinner = gameMode === 'ultimate-ai' && largeWinner === 'O';
+        document.getElementById('game-status').textContent = isAIWinner 
+            ? getAIWinMessage() 
+            : getPlayerWinMessage();
         saveGame(largeWinner, `${largeWinner} wins Ultimate Tic Tac Toe`);
     } else if (isLargeBoardDrawn()) {
         ultimateGameOver = true;
@@ -729,8 +733,11 @@ function handleCellClick(e) {
     if (winner) { 
         gameOver = true; 
         document.getElementById('turn-indicator').textContent = ''; 
-        // Use personality-based message: AI win or player win
-        document.getElementById('game-status').textContent = winner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
+        // Check if it's AI mode AND AI won (O), otherwise it's a player win
+        const isAIWinner = (gameMode === 'ai' || gameMode === 'ultimate-ai') && winner === 'O';
+        document.getElementById('game-status').textContent = isAIWinner 
+            ? getAIWinMessage() 
+            : getPlayerWinMessage();
         highlightWinner('standard'); 
         saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
     } else if (checkDraw(board)) { 

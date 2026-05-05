@@ -1,9 +1,23 @@
 {
   "medium-neutral": {
+    "wins": 7,
+    "losses": 2,
+    "draws": 9,
+    "difficulty": "medium",
+    "personality": "neutral"
+  },
+  "easy-neutral": {
+    "wins": 0,
+    "losses": 1,
+    "draws": 0,
+    "difficulty": "easy",
+    "personality": "neutral"
+  },
+  "hard-neutral": {
     "wins": 1,
     "losses": 0,
-    "draws": 0,
-    "difficulty": "medium",
+    "draws": 2,
+    "difficulty": "hard",
     "personality": "neutral"
   }
 }

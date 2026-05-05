@@ -723,5 +723,425 @@
     "aiDifficulty": null,
     "aiPersonality": "neutral",
     "playedAt": "2026-05-05T17:34:25.644Z"
+  },
+  {
+    "id": 1778002715322,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "O",
+      "",
+      "",
+      "X",
+      "O",
+      "",
+      "X",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:38:35.322Z"
+  },
+  {
+    "id": 1778002718942,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "O",
+      "",
+      "",
+      "X",
+      "O",
+      "",
+      "X",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:38:38.942Z"
+  },
+  {
+    "id": 1778002724425,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "O",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:38:44.425Z"
+  },
+  {
+    "id": 1778002729966,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "X",
+      "X",
+      "",
+      "",
+      "X",
+      "",
+      "O",
+      "O",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:38:49.966Z"
+  },
+  {
+    "id": 1778002737240,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:38:57.240Z"
+  },
+  {
+    "id": 1778002745765,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "O",
+      "X",
+      "X",
+      "O",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:39:05.765Z"
+  },
+  {
+    "id": 1778002758429,
+    "playedBy": "1",
+    "winner": "X",
+    "result": "Player wins",
+    "board": [
+      "",
+      "",
+      "",
+      "X",
+      "X",
+      "X",
+      "O",
+      "",
+      "O"
+    ],
+    "aiDifficulty": "easy",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:39:18.429Z"
+  },
+  {
+    "id": 1778002766858,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:39:26.858Z"
+  },
+  {
+    "id": 1778002773666,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "X",
+      "O",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:39:33.666Z"
+  },
+  {
+    "id": 1778002782564,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "X",
+      "O",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:39:42.564Z"
+  },
+  {
+    "id": 1778002961903,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "",
+      "O",
+      "",
+      "",
+      "O",
+      "X",
+      "X",
+      "O",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:42:41.903Z"
+  },
+  {
+    "id": 1778002967373,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "O",
+      "",
+      "",
+      "",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:42:47.373Z"
+  },
+  {
+    "id": 1778002975366,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:42:55.366Z"
+  },
+  {
+    "id": 1778002981992,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "X",
+      "O",
+      "X",
+      "O",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:43:01.992Z"
+  },
+  {
+    "id": 1778002989826,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "X",
+      "",
+      "",
+      "O",
+      "O",
+      "O",
+      "X",
+      "",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:43:09.826Z"
+  },
+  {
+    "id": 1778002997737,
+    "playedBy": "1",
+    "winner": "X",
+    "result": "Player wins",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "",
+      "O",
+      "X",
+      "O",
+      "",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:43:17.737Z"
+  },
+  {
+    "id": 1778003009455,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "X",
+      "O",
+      "",
+      "",
+      "O",
+      "",
+      "X",
+      "O",
+      "X"
+    ],
+    "aiDifficulty": "hard",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:43:29.455Z"
+  },
+  {
+    "id": 1778003018805,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "X",
+      "O",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "aiDifficulty": "hard",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:43:38.805Z"
+  },
+  {
+    "id": 1778003027738,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "hard",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:43:47.738Z"
+  },
+  {
+    "id": 1778003035704,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:43:55.704Z"
+  },
+  {
+    "id": 1778003041492,
+    "playedBy": "1",
+    "winner": "X",
+    "result": "Player wins",
+    "board": [
+      "O",
+      "",
+      "X",
+      "",
+      "O",
+      "X",
+      "X",
+      "O",
+      "X"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T17:44:01.492Z"
   }
 ]

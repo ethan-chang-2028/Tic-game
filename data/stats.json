@@ -1,9 +1,19 @@
 {
   "1": {
     "medium": {
+      "wins": 2,
+      "losses": 7,
+      "draws": 9
+    },
+    "easy": {
+      "wins": 1,
+      "losses": 0,
+      "draws": 0
+    },
+    "hard": {
       "wins": 0,
       "losses": 1,
-      "draws": 0
+      "draws": 2
     }
   }
 }

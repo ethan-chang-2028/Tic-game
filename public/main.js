@@ -79,42 +79,14 @@ const personalities = {
     }
 };
 
-function getRandomMessage(type, winner) {
-    const p = personalities[aiPersonality];
-    if (!p) return '';
-    
-    // For ultimate mode, use neutral personality if none set
-    const personality = gameMode === 'ultimate' || gameMode === 'ultimate-ai' ? p : personalities[aiPersonality];
-    const messages = personality[type];
-    if (!messages || messages.length === 0) return '';
-    
-    const randomIndex = Math.floor(Math.random() * messages.length);
-    let message = messages[randomIndex];
-    
-    if (type === 'aiWin') {
-        return message;
-    }
-    if (type === 'playerWin') {
-        return message;
-    }
-    if (type === 'win') {
-        // Backward compatibility - map to aiWin or playerWin
-        if (winner === 'O') {
-            return personalities[aiPersonality]?.aiWin?.[randomIndex] || `AI${message}`;
-        } else {
-            return personalities[aiPersonality]?.playerWin?.[randomIndex] || `Player ${winner}${message}`;
-        }
-    }
-    if (type === 'draw') {
-        return message;
-    }
-    
-    return message;
-}
-
-// Helper to get player win message based on AI personality
+// Helper to get player win message based on AI personality (or neutral for PvP)
 function getPlayerWinMessage() {
-    const p = personalities[aiPersonality] || personalities.neutral;
+    // For PvP mode, use neutral personality
+    const effectivePersonality = (gameMode === 'ai' || gameMode === 'ultimate-ai') 
+        ? (aiPersonality || 'neutral') 
+        : 'neutral';
+    
+    const p = personalities[effectivePersonality] || personalities.neutral;
     if (!p || !p.playerWin || p.playerWin.length === 0) {
         return "You win! Well played!";
     }
@@ -130,6 +102,28 @@ function getAIWinMessage() {
     }
     const randomIndex = Math.floor(Math.random() * p.aiWin.length);
     return p.aiWin[randomIndex];
+}
+
+// Backward compatible getRandomMessage for other message types
+function getRandomMessage(type, winner) {
+    const p = personalities[aiPersonality] || personalities.neutral;
+    if (!p) return '';
+    
+    const messages = p[type];
+    if (!messages || messages.length === 0) return '';
+    
+    const randomIndex = Math.floor(Math.random() * messages.length);
+    let message = messages[randomIndex];
+    
+    if (type === 'win') {
+        if (winner === 'O') {
+            return p.aiWin ? p.aiWin[randomIndex % p.aiWin.length] : `AI${message}`;
+        } else {
+            return p.playerWin ? p.playerWin[randomIndex % p.playerWin.length] : `Player ${winner}${message}`;
+        }
+    }
+    
+    return message;
 }
 
 // ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
@@ -735,6 +729,7 @@ function handleCellClick(e) {
     if (winner) { 
         gameOver = true; 
         document.getElementById('turn-indicator').textContent = ''; 
+        // Use personality-based message: AI win or player win
         document.getElementById('game-status').textContent = winner === 'O' ? getAIWinMessage() : getPlayerWinMessage();
         highlightWinner('standard'); 
         saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');

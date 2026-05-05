@@ -395,7 +395,6 @@ function handleSmallCellClick(e) {
     
     // Check if the small board is already won
     if (isSmallBoardFinished(largeIndex)) {
-        alert(`This small board is already finished!`);
         return;
     }
     

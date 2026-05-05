@@ -2,17 +2,17 @@
   "1": {
     "medium": {
       "wins": 2,
-      "losses": 7,
+      "losses": 8,
       "draws": 9
     },
     "easy": {
-      "wins": 1,
+      "wins": 2,
       "losses": 0,
       "draws": 0
     },
     "hard": {
-      "wins": 0,
-      "losses": 1,
+      "wins": 4,
+      "losses": 2,
       "draws": 2
     }
   }

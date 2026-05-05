@@ -367,22 +367,35 @@ function handleSmallCellClick(e) {
     }
 }
 
+// ── Save a finished game to the server with gameMode for leaderboard filtering ───────────────────────
 async function saveGame(winner, result) {
     try {
+        // Determine if it's an AI game for proper classification
+        const isAIGame = gameMode === 'ai' || gameMode === 'ultimate-ai';
+        
         const response = await fetch('/api/games', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                winner, result,
+                winner,
+                result,
                 board: (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? { largeBoard, smallBoards } : board,
-                gameMode,
-                aiDifficulty: (gameMode === 'ai' || gameMode === 'ultimate-ai') ? aiDifficulty : null,
-                aiPersonality: (gameMode === 'ai' || gameMode === 'ultimate-ai') ? aiPersonality : null
+                gameMode: gameMode, // Always include gameMode for leaderboard filtering
+                aiDifficulty: isAIGame ? aiDifficulty : null,
+                aiPersonality: isAIGame ? aiPersonality : null,
+                // Add timestamp for history
+                playedAt: new Date().toISOString()
             })
         });
-        if (response.ok) { loadHistory(); setTimeout(() => refreshAllStats(), 300); }
-        else console.warn('Game not saved (not logged in?)');
-    } catch (err) { console.error('Error saving game:', err); }
+        if (response.ok) { 
+            loadHistory(); 
+            setTimeout(() => refreshAllStats(), 300); 
+        } else { 
+            console.warn('Game not saved (not logged in?)'); 
+        }
+    } catch (err) { 
+        console.error('Error saving game:', err); 
+    }
 }
 
 async function refreshAllStats() {
@@ -397,7 +410,9 @@ async function refreshAllStats() {
             loadAILeaderboard(),
             loadAILeaderboardByMode()
         ]);
-    } catch (err) { console.error('Error refreshing stats:', err); }
+    } catch (err) { 
+        console.error('Error refreshing stats:', err); 
+    }
 }
 
 async function loadHistory() {
@@ -405,23 +420,50 @@ async function loadHistory() {
     if (!historyList) return;
     try {
         const response = await fetch('/api/games');
-        if (!response.ok) { historyList.innerHTML = '<p>Log in to see your history.</p>'; return; }
+        if (!response.ok) { 
+            historyList.innerHTML = '<p>Log in to see your history.</p>'; 
+            return; 
+        }
         const games = await response.json();
-        if (games.length === 0) { historyList.innerHTML = '<p>No games played yet.</p>'; return; }
+        if (games.length === 0) { 
+            historyList.innerHTML = '<p>No games played yet.</p>'; 
+            return; 
+        }
         historyList.innerHTML = games.map(game => {
             const date = new Date(game.playedAt).toLocaleString();
             const resultText = game.result === 'draw' ? 'Draw' : `${game.winner} wins`;
-            let gameDisplay = (game.gameMode === 'ultimate' || game.gameMode === 'ultimate-ai') ? '<p>Ultimate Tic Tac Toe</p>' : `<div class="mini-board">${game.board.map((cell, i) => `<span class="mini-cell" data-index="${i}">${cell}</span>`).join('')}</div>`;
-            const difficultyInfo = game.aiDifficulty ? `<div class="game-meta">Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>` : '';
+            
+            // Get game mode display name
+            const gameModeDisplay = {
+                'pvp': 'Player vs Player',
+                'ai': 'Player vs AI',
+                'ultimate': 'Ultimate Tic Tac Toe (PvP)',
+                'ultimate-ai': 'Ultimate Tic Tac Toe (vs AI)'
+            }[game.gameMode] || game.gameMode;
+            
+            let gameDisplay = (game.gameMode === 'ultimate' || game.gameMode === 'ultimate-ai') 
+                ? '<p>Ultimate Tic Tac Toe</p>' 
+                : `<div class="mini-board">${game.board.map((cell, i) => `<span class="mini-cell" data-index="${i}">${cell}</span>`).join('')}</div>`;
+            
+            const difficultyInfo = game.aiDifficulty 
+                ? `<div class="game-meta">Mode: ${gameModeDisplay}<br>Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>`
+                : `<div class="game-meta">Mode: ${gameModeDisplay}</div>`;
+
             return `<div class="history-card"><div class="history-meta"><span class="history-result">${resultText}</span><span class="history-date">${date}</span></div>${difficultyInfo}${gameDisplay}</div>`;
         }).join('');
-    } catch (err) { historyList.innerHTML = '<p>Could not load history.</p>'; console.error(err); }
+    } catch (err) { 
+        historyList.innerHTML = '<p>Could not load history.</p>'; 
+        console.error(err); 
+    }
 }
 
 async function loadStats() {
     try {
         const response = await fetch('/api/stats');
-        if (!response.ok) { console.warn('Not logged in or no stats available.'); return; }
+        if (!response.ok) { 
+            console.warn('Not logged in or no stats available.'); 
+            return; 
+        }
         const data = await response.json();
         const byDifficulty = data.byDifficulty || {};
         const global = data.global || { wins: 0, losses: 0, draws: 0 };
@@ -437,96 +479,173 @@ async function loadStats() {
         const totalGames = global.wins + global.losses + global.draws;
         const winRate = totalGames > 0 ? Math.round((global.wins / totalGames) * 100) : 0;
         document.getElementById('global-win-rate').textContent = `${winRate}%`;
-    } catch (err) { console.error('Error loading player stats:', err); }
+    } catch (err) { 
+        console.error('Error loading player stats:', err); 
+    }
 }
 
 async function loadAIStats() {
     try {
         const response = await fetch('/api/ai-stats');
-        if (!response.ok) { console.warn('Could not load AI stats.'); return; }
+        if (!response.ok) { 
+            console.warn('Could not load AI stats.'); 
+            return; 
+        }
         const data = await response.json();
         const globalAI = data.global || { wins: 0, losses: 0, draws: 0, winRate: 0 };
         document.getElementById('ai-global-wins').textContent = globalAI.wins;
         document.getElementById('ai-global-losses').textContent = globalAI.losses;
         document.getElementById('ai-global-draws').textContent = globalAI.draws;
         document.getElementById('ai-global-win-rate').textContent = `${globalAI.winRate}%`;
-    } catch (err) { console.error('Error loading AI stats:', err); }
+    } catch (err) { 
+        console.error('Error loading AI stats:', err); 
+    }
 }
 
 // Load player leaderboard (combined)
 async function loadLeaderboard() {
     try {
         const response = await fetch('/api/leaderboard');
-        if (!response.ok) { console.warn('Could not load player leaderboard.'); return; }
+        if (!response.ok) { 
+            console.warn('Could not load player leaderboard.'); 
+            return; 
+        }
         const leaderboard = await response.json();
         const leaderboardBody = document.getElementById('leaderboard-body');
-        if (leaderboard.length === 0) { leaderboardBody.innerHTML = '<tr><td colspan="5">No players on the leaderboard yet.</td></tr>'; return; }
+        if (leaderboard.length === 0) { 
+            leaderboardBody.innerHTML = '<tr><td colspan="5">No players on the leaderboard yet.</td></tr>'; 
+            return; 
+        }
         leaderboardBody.innerHTML = leaderboard.map((entry, index) => `
             <tr><td>${index + 1}</td><td>${entry.username}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
         `).join('');
-    } catch (err) { console.error('Error loading player leaderboard:', err); }
+    } catch (err) { 
+        console.error('Error loading player leaderboard:', err); 
+    }
 }
 
 // Load player leaderboard separated by game mode
 async function loadLeaderboardByMode() {
     try {
         const response = await fetch('/api/leaderboard/by-mode');
-        if (!response.ok) { console.warn('Could not load player leaderboard by mode.'); return; }
+        if (!response.ok) { 
+            console.warn('Could not load player leaderboard by mode.'); 
+            return; 
+        }
         const leaderboard = await response.json();
         const leaderboardBody = document.getElementById('leaderboard-by-mode-body');
-        if (leaderboard.length === 0) { leaderboardBody.innerHTML = '<tr><td colspan="6">No players on the leaderboard yet.</td></tr>'; return; }
-        leaderboardBody.innerHTML = leaderboard.map((entry, index) => `
-            <tr><td>${index + 1}</td><td>${entry.username}</td><td>${entry.gameMode}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
-        `).join('');
-    } catch (err) { console.error('Error loading player leaderboard by mode:', err); }
+        if (leaderboard.length === 0) { 
+            leaderboardBody.innerHTML = '<tr><td colspan="6">No players on the leaderboard yet.</td></tr>'; 
+            return; 
+        }
+        
+        // Map gameMode to display name
+        const gameModeNames = {
+            'pvp': 'PvP',
+            'ai': 'vs AI',
+            'ultimate': 'Ultimate PvP',
+            'ultimate-ai': 'Ultimate vs AI'
+        };
+        
+        leaderboardBody.innerHTML = leaderboard.map((entry, index) => {
+            const modeDisplay = gameModeNames[entry.gameMode] || entry.gameMode;
+            return `
+                <tr><td>${index + 1}</td><td>${entry.username}</td><td>${modeDisplay}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
+            `;
+        }).join('');
+    } catch (err) { 
+        console.error('Error loading player leaderboard by mode:', err); 
+    }
 }
 
 // Load AI leaderboard (combined)
 async function loadAILeaderboard() {
     try {
         const response = await fetch('/api/ai-leaderboard');
-        if (!response.ok) { console.warn('Could not load AI leaderboard.'); return; }
+        if (!response.ok) { 
+            console.warn('Could not load AI leaderboard.'); 
+            return; 
+        }
         const aiLeaderboard = await response.json();
         const aiLeaderboardBody = document.getElementById('ai-leaderboard-body');
-        if (aiLeaderboard.length === 0) { aiLeaderboardBody.innerHTML = '<tr><td colspan="6">No AI configurations on the leaderboard yet.</td></tr>'; return; }
+        if (aiLeaderboard.length === 0) { 
+            aiLeaderboardBody.innerHTML = '<tr><td colspan="6">No AI configurations on the leaderboard yet.</td></tr>'; 
+            return; 
+        }
         aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => `
             <tr><td>${index + 1}</td><td>${entry.difficulty}</td><td>${entry.personality}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
         `).join('');
-    } catch (err) { console.error('Error loading AI leaderboard:', err); }
+    } catch (err) { 
+        console.error('Error loading AI leaderboard:', err); 
+    }
 }
 
 // Load AI leaderboard separated by game mode
 async function loadAILeaderboardByMode() {
     try {
         const response = await fetch('/api/ai-leaderboard/by-mode');
-        if (!response.ok) { console.warn('Could not load AI leaderboard by mode.'); return; }
+        if (!response.ok) { 
+            console.warn('Could not load AI leaderboard by mode.'); 
+            return; 
+        }
         const aiLeaderboard = await response.json();
         const aiLeaderboardBody = document.getElementById('ai-leaderboard-by-mode-body');
-        if (aiLeaderboard.length === 0) { aiLeaderboardBody.innerHTML = '<tr><td colspan="7">No AI configurations on the leaderboard yet.</td></tr>'; return; }
-        aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => `
-            <tr><td>${index + 1}</td><td>${entry.difficulty}</td><td>${entry.personality}</td><td>${entry.gameMode}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
-        `).join('');
-    } catch (err) { console.error('Error loading AI leaderboard by mode:', err); }
+        if (aiLeaderboard.length === 0) { 
+            aiLeaderboardBody.innerHTML = '<tr><td colspan="7">No AI configurations on the leaderboard yet.</td></tr>'; 
+            return; 
+        }
+        
+        // Map gameMode to display name
+        const gameModeNames = {
+            'ai': 'Standard vs AI',
+            'ultimate-ai': 'Ultimate vs AI'
+        };
+        
+        aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => {
+            const modeDisplay = gameModeNames[entry.gameMode] || entry.gameMode;
+            return `
+                <tr><td>${index + 1}</td><td>${entry.difficulty}</td><td>${entry.personality}</td><td>${modeDisplay}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
+            `;
+        }).join('');
+    } catch (err) { 
+        console.error('Error loading AI leaderboard by mode:', err); 
+    }
 }
 
 async function resetStats(difficulty) {
     if (!confirm(`Are you sure you want to reset your ${difficulty} difficulty stats?`)) return;
     try {
         const response = await fetch('/api/stats/reset', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ difficulty })
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ difficulty })
         });
-        if (response.ok) { refreshAllStats(); alert(`Stats reset for ${difficulty} difficulty!`); }
-        else { const data = await response.json(); alert(data.error || 'Failed to reset stats.'); }
-    } catch (err) { console.error('Error resetting stats:', err); }
+        if (response.ok) { 
+            refreshAllStats(); 
+            alert(`Stats reset for ${difficulty} difficulty!`); 
+        } else { 
+            const data = await response.json(); 
+            alert(data.error || 'Failed to reset stats.'); 
+        }
+    } catch (err) { 
+        console.error('Error resetting stats:', err); 
+    }
 }
 
 async function clearHistory() {
     if (!confirm('Are you sure you want to clear your game history?')) return;
     try {
         const response = await fetch('/api/games', { method: 'DELETE' });
-        if (response.ok) { loadHistory(); refreshAllStats(); alert('History cleared!'); }
-        else alert('Failed to clear history.');
-    } catch (err) { console.error('Error clearing history:', err); }
+        if (response.ok) { 
+            loadHistory(); 
+            refreshAllStats(); 
+            alert('History cleared!'); 
+        } else { 
+            alert('Failed to clear history.'); 
+        }
+    } catch (err) { 
+        console.error('Error clearing history:', err); 
+    }
 }
 
 function toggleGameMode() {
@@ -536,6 +655,7 @@ function toggleGameMode() {
     const personalitySection = document.getElementById('personality-section');
     const standardBoard = document.getElementById('standard-board');
     const ultimateBoard = document.getElementById('ultimate-board');
+    
     if (gameMode === 'ai') {
         difficultySection.style.display = 'flex';
         personalitySection.style.display = 'flex';
@@ -564,52 +684,152 @@ function toggleGameMode() {
         personalitySection.style.display = 'none';
         standardBoard.style.display = 'grid';
         ultimateBoard.style.display = 'none';
-        aiDifficulty = null; aiPersonality = null;
+        aiDifficulty = null; 
+        aiPersonality = null;
     }
     resetGame();
 }
 
-function setAIDifficulty() { aiDifficulty = document.getElementById('ai-difficulty').value; }
-function setAIPersonality() { aiPersonality = document.getElementById('ai-personality').value; }
+function setAIDifficulty() { 
+    aiDifficulty = document.getElementById('ai-difficulty').value; 
+}
+
+function setAIPersonality() { 
+    aiPersonality = document.getElementById('ai-personality').value; 
+}
 
 function handleCellClick(e) {
     if (gameMode === 'ai' && currentPlayer === 'O') return;
     if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') return;
     const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
-    board[index] = currentPlayer; e.target.textContent = currentPlayer; e.target.classList.add('taken');
+    
+    board[index] = currentPlayer; 
+    e.target.textContent = currentPlayer; 
+    e.target.classList.add('taken');
+
     const winner = checkWinner(board);
-    if (winner) { gameOver = true; document.getElementById('turn-indicator').textContent = ''; document.getElementById('game-status').textContent = getRandomMessage('win', winner); highlightWinner('standard'); saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins'); }
-    else if (checkDraw(board)) { gameOver = true; document.getElementById('turn-indicator').textContent = ''; document.getElementById('game-status').textContent = getRandomMessage('draw'); saveGame(null, 'draw'); }
-    else { currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; document.getElementById('turn-indicator').textContent = gameMode === 'ai' ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking')) : `Player ${currentPlayer}'s Turn`; if (gameMode === 'ai' && currentPlayer === 'O') setTimeout(makeAIMove, 500); }
+    if (winner) { 
+        gameOver = true; 
+        document.getElementById('turn-indicator').textContent = ''; 
+        document.getElementById('game-status').textContent = getRandomMessage('win', winner); 
+        highlightWinner('standard'); 
+        saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
+    } else if (checkDraw(board)) { 
+        gameOver = true; 
+        document.getElementById('turn-indicator').textContent = ''; 
+        document.getElementById('game-status').textContent = getRandomMessage('draw'); 
+        saveGame(null, 'draw');
+    } else { 
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; 
+        document.getElementById('turn-indicator').textContent = gameMode === 'ai' 
+            ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking')) 
+            : `Player ${currentPlayer}'s Turn`;
+        
+        if (gameMode === 'ai' && currentPlayer === 'O') { 
+            setTimeout(makeAIMove, 500); 
+        }
+    }
 }
 
 function resetGame() {
-    board = ['', '', '', '', '', '', '', '', '']; currentPlayer = 'X'; gameOver = false; ultimateGameOver = false;
-    largeBoard = ['', '', '', '', '', '', '', '', '']; smallBoards = Array(9).fill().map(() => Array(9).fill(''));
-    document.querySelectorAll('#standard-board .cell').forEach(cell => { cell.textContent = ''; cell.classList.remove('taken', 'winner'); });
-    document.querySelectorAll('.small-cell').forEach(cell => { cell.textContent = ''; cell.classList.remove('taken', 'winner'); });
-    document.querySelectorAll('.large-cell-winner').forEach(cell => { cell.textContent = ''; cell.classList.remove('taken', 'draw', 'X', 'O'); });
-    document.querySelectorAll('.large-cell').forEach(cell => { cell.classList.remove('active'); });
-    document.getElementById('turn-indicator').textContent = gameMode === 'ai' ? getRandomMessage('turn') : (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? "Player X's Turn (Any Board)" : "Player X's Turn";
+    board = ['', '', '', '', '', '', '', '', '']; 
+    currentPlayer = 'X'; 
+    gameOver = false; 
+    ultimateGameOver = false;
+
+    largeBoard = ['', '', '', '', '', '', '', '', '']; 
+    smallBoards = Array(9).fill().map(() => Array(9).fill(''));
+
+    document.querySelectorAll('#standard-board .cell').forEach(cell => { 
+        cell.textContent = ''; 
+        cell.classList.remove('taken', 'winner'); 
+    });
+
+    document.querySelectorAll('.small-cell').forEach(cell => { 
+        cell.textContent = ''; 
+        cell.classList.remove('taken', 'winner'); 
+    });
+    
+    document.querySelectorAll('.large-cell-winner').forEach(cell => { 
+        cell.textContent = ''; 
+        cell.classList.remove('taken', 'draw', 'X', 'O'); 
+    });
+    
+    document.querySelectorAll('.large-cell').forEach(cell => { 
+        cell.classList.remove('active'); 
+    });
+
+    document.getElementById('turn-indicator').textContent = gameMode === 'ai' 
+        ? getRandomMessage('turn') 
+        : (gameMode === 'ultimate' || gameMode === 'ultimate-ai') 
+            ? "Player X's Turn (Any Board)" 
+            : "Player X's Turn";
+    
     document.getElementById('game-status').textContent = '';
 }
 
 function initBoard() {
-    document.querySelectorAll('#standard-board .cell').forEach(cell => { cell.addEventListener('click', handleCellClick); });
-    document.querySelectorAll('.small-cell').forEach(cell => { cell.addEventListener('click', handleSmallCellClick); });
+    document.querySelectorAll('#standard-board .cell').forEach(cell => { 
+        cell.addEventListener('click', handleCellClick); 
+    });
+    
+    document.querySelectorAll('.small-cell').forEach(cell => { 
+        cell.addEventListener('click', handleSmallCellClick); 
+    });
 }
 
 window.onload = async () => {
     initBoard();
     const response = await fetch('/api/me');
-    if (response.ok) { const data = await response.json(); showGame(data.username); }
+    if (response.ok) { 
+        const data = await response.json(); 
+        showGame(data.username); 
+    }
 };
 
-async function register() { const username = document.getElementById('username').value; const password = document.getElementById('password').value; const response = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }); const data = await response.json(); document.getElementById('auth-message').textContent = data.error || data.message; }
+async function register() { 
+    const username = document.getElementById('username').value; 
+    const password = document.getElementById('password').value; 
+    const response = await fetch('/api/register', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ username, password }) 
+    }); 
+    const data = await response.json(); 
+    document.getElementById('auth-message').textContent = data.error || data.message; 
+}
 
-async function login() { const username = document.getElementById('username').value; const password = document.getElementById('password').value; const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }); const data = await response.json(); if (response.ok) showGame(data.username); else document.getElementById('auth-message').textContent = data.error; }
+async function login() { 
+    const username = document.getElementById('username').value; 
+    const password = document.getElementById('password').value; 
+    const response = await fetch('/api/login', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ username, password }) 
+    }); 
+    const data = await response.json(); 
+    if (response.ok) showGame(data.username); 
+    else document.getElementById('auth-message').textContent = data.error; 
+}
 
-async function logout() { await fetch('/api/logout', { method: 'POST' }); document.getElementById('game-section').style.display = 'none'; document.getElementById('auth-section').style.display = 'block'; document.getElementById('username').value = ''; document.getElementById('password').value = ''; document.getElementById('auth-message').textContent = 'Logged out.'; resetGame(); aiDifficulty = null; aiPersonality = null; }
+async function logout() { 
+    await fetch('/api/logout', { method: 'POST' }); 
+    document.getElementById('game-section').style.display = 'none'; 
+    document.getElementById('auth-section').style.display = 'block'; 
+    document.getElementById('username').value = ''; 
+    document.getElementById('password').value = ''; 
+    document.getElementById('auth-message').textContent = 'Logged out.'; 
+    resetGame(); 
+    aiDifficulty = null; 
+    aiPersonality = null; 
+}
 
-function showGame(username) { document.getElementById('auth-section').style.display = 'none'; document.getElementById('game-section').style.display = 'block'; document.getElementById('welcome-message').textContent = `Welcome, ${username}!`; loadHistory(); refreshAllStats(); toggleGameMode(); }
+function showGame(username) { 
+    document.getElementById('auth-section').style.display = 'none'; 
+    document.getElementById('game-section').style.display = 'block'; 
+    document.getElementById('welcome-message').textContent = `Welcome, ${username}!`; 
+    loadHistory(); 
+    refreshAllStats(); 
+    toggleGameMode(); 
+}

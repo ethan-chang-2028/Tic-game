@@ -3,8 +3,14 @@ let currentPlayer = 'X';
 let board = ['', '', '', '', '', '', '', '', ''];
 let gameOver = false;
 let gameMode = 'pvp';
-let aiDifficulty = null; // Start as null for PvP mode
-let aiPersonality = null; // Start as null for PvP mode
+let aiDifficulty = null;
+let aiPersonality = null;
+
+// ── Ultimate Tic Tac Toe state ──────────────────────────────
+let largeBoard = ['', '', '', '', '', '', '', '', '']; // Tracks winner of each small board
+let smallBoards = Array(9).fill().map(() => Array(9).fill('')); // 9 small boards, each with 9 cells
+let activeLargeIndex = null; // The small board where the next move must be played
+let ultimateGameOver = false;
 
 const WIN_COMBOS = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -13,28 +19,38 @@ const WIN_COMBOS = [
 ];
 
 // ── Win / draw detection ─────────────────────────────────────
-function checkWinner() {
+function checkWinner(board) {
     for (const [a, b, c] of WIN_COMBOS) {
         if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            return board[a]; // 'X' or 'O'
+            return board[a];
         }
     }
     return null;
 }
 
-function checkDraw() {
+function checkDraw(board) {
     return board.every(cell => cell !== '');
 }
 
 // ── Highlight the winning cells green ────────────────────────
-function highlightWinner() {
+function highlightWinner(boardType, boardIndex = null) {
     for (const [a, b, c] of WIN_COMBOS) {
-        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-            const cells = document.querySelectorAll('.cell');
-            cells[a].classList.add('winner');
-            cells[b].classList.add('winner');
-            cells[c].classList.add('winner');
-            break;
+        if (boardType === 'standard') {
+            if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                const cells = document.querySelectorAll('#standard-board .cell');
+                cells[a].classList.add('winner');
+                cells[b].classList.add('winner');
+                cells[c].classList.add('winner');
+                break;
+            }
+        } else if (boardType === 'small' && boardIndex !== null) {
+            if (smallBoards[boardIndex][a] && smallBoards[boardIndex][a] === smallBoards[boardIndex][b] && smallBoards[boardIndex][a] === smallBoards[boardIndex][c]) {
+                const smallCells = document.querySelectorAll(`.small-board[data-large-index="${boardIndex}"] .small-cell`);
+                smallCells[a].classList.add('winner');
+                smallCells[b].classList.add('winner');
+                smallCells[c].classList.add('winner');
+                break;
+            }
         }
     }
 }
@@ -64,17 +80,13 @@ const personalities = {
     }
 };
 
-// Helper function to get a random message from the personality arrays
 function getRandomMessage(type, winner) {
     const p = personalities[aiPersonality];
     if (!p) return '';
-    
     const messages = p[type];
     if (!messages || messages.length === 0) return '';
-    
     const randomIndex = Math.floor(Math.random() * messages.length);
     let message = messages[randomIndex];
-    
     if (type === 'win') {
         if (winner === 'O') {
             return `AI${message}`;
@@ -82,16 +94,15 @@ function getRandomMessage(type, winner) {
             return `Player ${winner}${message}`;
         }
     }
-    
     return message;
 }
 
 // ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
 function minimax(board, depth, isMaximizing) {
-    const winner = checkWinner();
+    const winner = checkWinner(board);
     if (winner === 'O') return 10 - depth;
     if (winner === 'X') return depth - 10;
-    if (checkDraw()) return 0;
+    if (checkDraw(board)) return 0;
 
     if (isMaximizing) {
         let bestScore = -Infinity;
@@ -119,38 +130,33 @@ function minimax(board, depth, isMaximizing) {
 }
 
 // ── AI Logic: Easy (Random Move) ────
-function getRandomMove() {
+function getRandomMove(board) {
     const emptyCells = board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
 
 // ── AI Logic: Medium (Block/Win + Random) ─────────────────────
-function getMediumMove() {
-    // Check for winning move
+function getMediumMove(board) {
     for (let i = 0; i < WIN_COMBOS.length; i++) {
         const [a, b, c] = WIN_COMBOS[i];
         if (board[a] === 'O' && board[b] === 'O' && board[c] === '') return c;
         if (board[a] === 'O' && board[c] === 'O' && board[b] === '') return b;
         if (board[b] === 'O' && board[c] === 'O' && board[a] === '') return a;
     }
-    // Block player's winning move
     for (let i = 0; i < WIN_COMBOS.length; i++) {
         const [a, b, c] = WIN_COMBOS[i];
         if (board[a] === 'X' && board[b] === 'X' && board[c] === '') return c;
         if (board[a] === 'X' && board[c] === 'X' && board[b] === '') return b;
         if (board[b] === 'X' && board[c] === 'X' && board[a] === '') return a;
     }
-    // Take center if available
     if (board[4] === '') return 4;
-    // Take a corner if available
     const corners = [0, 2, 6, 8].filter(i => board[i] === '');
     if (corners.length > 0) return corners[Math.floor(Math.random() * corners.length)];
-    // Random move
-    return getRandomMove();
+    return getRandomMove(board);
 }
 
 // ── AI Logic: Hard (Minimax) ──────────────────────────────────
-function getHardMove() {
+function getHardMove(board) {
     let bestScore = -Infinity;
     let bestMove = null;
     for (let i = 0; i < board.length; i++) {
@@ -168,30 +174,31 @@ function getHardMove() {
 }
 
 // ── AI makes a move based on difficulty ──────────────────────
-function getAIMove() {
-    if (aiDifficulty === 'easy') return getRandomMove();
-    if (aiDifficulty === 'medium') return getMediumMove();
-    if (aiDifficulty === 'hard') return getHardMove();
-    return getRandomMove();
+function getAIMove(board) {
+    if (aiDifficulty === 'easy') return getRandomMove(board);
+    if (aiDifficulty === 'medium') return getMediumMove(board);
+    if (aiDifficulty === 'hard') return getHardMove(board);
+    return getRandomMove(board);
 }
 
+// ── Standard Tic Tac Toe: AI Move ────────────────────────────
 function makeAIMove() {
     if (gameOver) return;
-    const aiMove = getAIMove();
+    const aiMove = getAIMove(board);
     if (aiMove !== null) {
         board[aiMove] = 'O';
-        const cells = document.querySelectorAll('.cell');
+        const cells = document.querySelectorAll('#standard-board .cell');
         cells[aiMove].textContent = 'O';
         cells[aiMove].classList.add('taken');
 
-        const winner = checkWinner();
+        const winner = checkWinner(board);
         if (winner) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
             document.getElementById('game-status').textContent = getRandomMessage('win', winner);
-            highlightWinner();
+            highlightWinner('standard');
             saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
-        } else if (checkDraw()) {
+        } else if (checkDraw(board)) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
             document.getElementById('game-status').textContent = getRandomMessage('draw');
@@ -203,43 +210,120 @@ function makeAIMove() {
     }
 }
 
-// ── AI vs AI: AI makes a move as X ────────────────────────
-function makeAIMoveAsX() {
-    if (gameOver || gameMode !== 'ai-vs-ai') return;
-    const aiMove = getAIMove();
-    if (aiMove !== null) {
-        board[aiMove] = 'X';
-        const cells = document.querySelectorAll('.cell');
-        cells[aiMove].textContent = 'X';
-        cells[aiMove].classList.add('taken');
+// ── Ultimate Tic Tac Toe: Check if a small board is won or drawn ────
+function checkSmallBoardWinner(largeIndex) {
+    return checkWinner(smallBoards[largeIndex]);
+}
 
-        const winner = checkWinner();
-        if (winner) {
-            gameOver = true;
-            document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = `AI (X)${getRandomMessage('win', 'X')}`;
-            highlightWinner();
-            saveGame(winner, 'AI (X) wins');
-        } else if (checkDraw()) {
-            gameOver = true;
-            document.getElementById('turn-indicator').textContent = '';
-            document.getElementById('game-status').textContent = getRandomMessage('draw');
-            saveGame(null, 'draw');
+function isSmallBoardDrawn(largeIndex) {
+    return checkDraw(smallBoards[largeIndex]);
+}
+
+function isSmallBoardFinished(largeIndex) {
+    return checkSmallBoardWinner(largeIndex) !== null || isSmallBoardDrawn(largeIndex);
+}
+
+// ── Ultimate Tic Tac Toe: Check if the large board is won or drawn ────
+function checkLargeBoardWinner() {
+    return checkWinner(largeBoard);
+}
+
+function isLargeBoardDrawn() {
+    return largeBoard.every(cell => cell !== '');
+}
+
+// ── Ultimate Tic Tac Toe: Update the active small board ────────
+function updateActiveBoard(lastSmallIndex) {
+    if (lastSmallIndex === null || lastSmallIndex === undefined) {
+        activeLargeIndex = null; // First move: any board is active
+    } else {
+        const targetBoard = smallBoards[lastSmallIndex];
+        if (isSmallBoardFinished(lastSmallIndex)) {
+            activeLargeIndex = null; // If the target board is finished, any board is active
         } else {
-            currentPlayer = 'O';
-            document.getElementById('turn-indicator').textContent = getRandomMessage('thinking');
-            setTimeout(makeAIMove, 1000);
+            activeLargeIndex = lastSmallIndex;
         }
     }
 }
 
-// ── Start AI vs AI game ────────────────────────────────────
-function startAIVsAI() {
-    if (gameMode !== 'ai-vs-ai') return;
-    resetGame();
-    currentPlayer = 'X';
-    document.getElementById('turn-indicator').textContent = 'AI (X) is thinking...';
-    setTimeout(makeAIMoveAsX, 1000);
+// ── Ultimate Tic Tac Toe: Handle small cell click ────────────
+function handleSmallCellClick(e) {
+    if (gameMode !== 'ultimate' || ultimateGameOver) return;
+    
+    const largeIndex = parseInt(e.target.getAttribute('data-large-index'));
+    const smallIndex = parseInt(e.target.getAttribute('data-small-index'));
+    
+    // Check if the click is in the active board (or any board if no active board)
+    if (activeLargeIndex !== null && largeIndex !== activeLargeIndex) {
+        alert(`You must play in the board corresponding to your last move's position!`);
+        return;
+    }
+    
+    // Check if the small board is already won
+    if (isSmallBoardFinished(largeIndex)) {
+        alert(`This small board is already finished!`);
+        return;
+    }
+    
+    // Check if the cell is already taken
+    if (smallBoards[largeIndex][smallIndex] !== '') {
+        return;
+    }
+    
+    // Make the move
+    smallBoards[largeIndex][smallIndex] = currentPlayer;
+    e.target.textContent = currentPlayer;
+    e.target.classList.add('taken');
+    
+    // Check if this small board is now won
+    const smallWinner = checkSmallBoardWinner(largeIndex);
+    if (smallWinner) {
+        largeBoard[largeIndex] = smallWinner;
+        const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+        if (largeCellWinner) {
+            largeCellWinner.textContent = smallWinner;
+            largeCellWinner.classList.add('taken');
+        }
+        highlightWinner('small', largeIndex);
+    } else if (isSmallBoardDrawn(largeIndex)) {
+        largeBoard[largeIndex] = 'draw';
+        const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+        if (largeCellWinner) {
+            largeCellWinner.textContent = 'Draw';
+            largeCellWinner.classList.add('draw');
+        }
+    }
+    
+    // Check if the large board is won
+    const largeWinner = checkLargeBoardWinner();
+    if (largeWinner) {
+        ultimateGameOver = true;
+        document.getElementById('turn-indicator').textContent = '';
+        document.getElementById('game-status').textContent = `Player ${largeWinner} wins the Ultimate Game! 🎉`;
+        saveGame(largeWinner, `${largeWinner} wins Ultimate Tic Tac Toe`);
+    } else if (isLargeBoardDrawn()) {
+        ultimateGameOver = true;
+        document.getElementById('turn-indicator').textContent = '';
+        document.getElementById('game-status').textContent = 'Ultimate Game is a draw!';
+        saveGame(null, 'Ultimate Tic Tac Toe draw');
+    } else {
+        // Switch player and update active board
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        updateActiveBoard(smallIndex);
+        
+        // Highlight the active board
+        document.querySelectorAll('.large-cell').forEach(cell => {
+            cell.classList.remove('active');
+        });
+        if (activeLargeIndex !== null) {
+            const activeLargeCell = document.querySelector(`.large-cell[data-large-index="${activeLargeIndex}"]`);
+            if (activeLargeCell) {
+                activeLargeCell.classList.add('active');
+            }
+        }
+        
+        document.getElementById('turn-indicator').textContent = `Player ${currentPlayer}'s Turn`;
+    }
 }
 
 // ── Save a finished game to the server ───────────────────────
@@ -248,14 +332,13 @@ async function saveGame(winner, result) {
         const response = await fetch('/api/games', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // ALWAYS include aiDifficulty and aiPersonality (null for PvP)
             body: JSON.stringify({
                 winner,
                 result,
-                board,
+                board: gameMode === 'ultimate' ? { largeBoard, smallBoards } : board,
                 gameMode,
-                aiDifficulty: gameMode === 'ai' || gameMode === 'ai-vs-ai' ? aiDifficulty : null,
-                aiPersonality: gameMode === 'ai' || gameMode === 'ai-vs-ai' ? aiPersonality : null
+                aiDifficulty: gameMode === 'ai' ? aiDifficulty : null,
+                aiPersonality: gameMode === 'ai' ? aiPersonality : null
             })
         });
         if (response.ok) {
@@ -306,12 +389,18 @@ async function loadHistory() {
         historyList.innerHTML = games.map(game => {
             const date = new Date(game.playedAt).toLocaleString();
             const resultText = game.result === 'draw'
-                ? getRandomMessage('draw')
+                ? 'Draw'
                 : `${game.winner} wins`;
 
-            const cells = game.board.map((cell, i) =>
-                `<span class="mini-cell" data-index="${i}">${cell}</span>`
-            ).join('');
+            let gameDisplay;
+            if (game.gameMode === 'ultimate') {
+                gameDisplay = '<p>Ultimate Tic Tac Toe</p>';
+            } else {
+                const cells = game.board.map((cell, i) =>
+                    `<span class="mini-cell" data-index="${i}">${cell}</span>`
+                ).join('');
+                gameDisplay = `<div class="mini-board">${cells}</div>`;
+            }
 
             const difficultyInfo = game.aiDifficulty ? 
                 `<div class="game-meta">Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>` : '';
@@ -323,7 +412,7 @@ async function loadHistory() {
                         <span class="history-date">${date}</span>
                     </div>
                     ${difficultyInfo}
-                    <div class="mini-board">${cells}</div>
+                    ${gameDisplay}
                 </div>
             `;
         }).join('');
@@ -347,7 +436,6 @@ async function loadStats() {
         const byDifficulty = data.byDifficulty || {};
         const global = data.global || { wins: 0, losses: 0, draws: 0 };
 
-        // Update stats for each difficulty
         ['easy', 'medium', 'hard'].forEach(difficulty => {
             const difficultyStats = byDifficulty[difficulty] || { wins: 0, losses: 0, draws: 0 };
             document.getElementById(`${difficulty}-wins`).textContent = difficultyStats.wins;
@@ -355,12 +443,10 @@ async function loadStats() {
             document.getElementById(`${difficulty}-draws`).textContent = difficultyStats.draws;
         });
 
-        // Update global stats
         document.getElementById('global-wins').textContent = global.wins;
         document.getElementById('global-losses').textContent = global.losses;
         document.getElementById('global-draws').textContent = global.draws;
 
-        // Calculate and display win rate
         const totalGames = global.wins + global.losses + global.draws;
         const winRate = totalGames > 0 ? Math.round((global.wins / totalGames) * 100) : 0;
         document.getElementById('global-win-rate').textContent = `${winRate}%`;
@@ -382,7 +468,6 @@ async function loadAIStats() {
         const data = await response.json();
         const globalAI = data.global || { wins: 0, losses: 0, draws: 0, winRate: 0 };
 
-        // Update AI global stats
         document.getElementById('ai-global-wins').textContent = globalAI.wins;
         document.getElementById('ai-global-losses').textContent = globalAI.losses;
         document.getElementById('ai-global-draws').textContent = globalAI.draws;
@@ -498,39 +583,36 @@ async function clearHistory() {
     }
 }
 
-// ── Toggle AI settings visibility ────────────────────────────
-function toggleAISettings() {
+// ── Toggle game mode settings visibility ────────────────────
+function toggleGameMode() {
     const modeSelect = document.getElementById('game-mode');
     gameMode = modeSelect.value;
     const difficultySection = document.getElementById('difficulty-section');
     const personalitySection = document.getElementById('personality-section');
-    const aiVsAiBtn = document.getElementById('ai-vs-ai-btn');
+    const standardBoard = document.getElementById('standard-board');
+    const ultimateBoard = document.getElementById('ultimate-board');
 
     if (gameMode === 'ai') {
         difficultySection.style.display = 'flex';
         personalitySection.style.display = 'flex';
-        if (aiVsAiBtn) aiVsAiBtn.style.display = 'none';
-        // Set defaults for AI mode
+        standardBoard.style.display = 'grid';
+        ultimateBoard.style.display = 'none';
         if (aiDifficulty === null) aiDifficulty = 'medium';
         if (aiPersonality === null) aiPersonality = 'neutral';
         document.getElementById('ai-difficulty').value = aiDifficulty;
         document.getElementById('ai-personality').value = aiPersonality;
-    }
-    else if (gameMode === 'ai-vs-ai') {
-        difficultySection.style.display = 'flex';
-        personalitySection.style.display = 'flex';
-        if (aiVsAiBtn) aiVsAiBtn.style.display = 'block';
-        // Set defaults for AI vs AI mode
-        if (aiDifficulty === null) aiDifficulty = 'medium';
-        if (aiPersonality === null) aiPersonality = 'neutral';
-        document.getElementById('ai-difficulty').value = aiDifficulty;
-        document.getElementById('ai-personality').value = aiPersonality;
-    }
-    else {
+    } else if (gameMode === 'ultimate') {
         difficultySection.style.display = 'none';
         personalitySection.style.display = 'none';
-        if (aiVsAiBtn) aiVsAiBtn.style.display = 'none';
-        // Reset to null for PvP mode
+        standardBoard.style.display = 'none';
+        ultimateBoard.style.display = 'block';
+        aiDifficulty = null;
+        aiPersonality = null;
+    } else {
+        difficultySection.style.display = 'none';
+        personalitySection.style.display = 'none';
+        standardBoard.style.display = 'grid';
+        ultimateBoard.style.display = 'none';
         aiDifficulty = null;
         aiPersonality = null;
     }
@@ -549,10 +631,10 @@ function setAIPersonality() {
     aiPersonality = personalitySelect.value;
 }
 
-// ── Cell click handler ────────────────────────────────────────
+// ── Standard Tic Tac Toe: Cell click handler ────────────────
 function handleCellClick(e) {
     if (gameMode === 'ai' && currentPlayer === 'O') return;
-    if (gameMode === 'ai-vs-ai') return; // Disable clicks in AI vs AI mode
+    if (gameMode === 'ultimate') return;
     const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
 
@@ -560,14 +642,14 @@ function handleCellClick(e) {
     e.target.textContent = currentPlayer;
     e.target.classList.add('taken');
 
-    const winner = checkWinner();
+    const winner = checkWinner(board);
     if (winner) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
         document.getElementById('game-status').textContent = getRandomMessage('win', winner);
-        highlightWinner();
+        highlightWinner('standard');
         saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
-    } else if (checkDraw()) {
+    } else if (checkDraw(board)) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
         document.getElementById('game-status').textContent = getRandomMessage('draw');
@@ -584,29 +666,57 @@ function handleCellClick(e) {
     }
 }
 
-// ── Reset the board ───────────────────────────────────────────
+// ── Reset the game ───────────────────────────────────────────
 function resetGame() {
+    // Reset standard board
     board = ['', '', '', '', '', '', '', '', ''];
     currentPlayer = 'X';
     gameOver = false;
+    ultimateGameOver = false;
 
-    document.querySelectorAll('.cell').forEach(cell => {
+    // Reset ultimate board
+    largeBoard = ['', '', '', '', '', '', '', '', ''];
+    smallBoards = Array(9).fill().map(() => Array(9).fill(''));
+    activeLargeIndex = null;
+
+    // Reset UI for standard board
+    document.querySelectorAll('#standard-board .cell').forEach(cell => {
         cell.textContent = '';
         cell.classList.remove('taken', 'winner');
     });
 
+    // Reset UI for ultimate board
+    document.querySelectorAll('.small-cell').forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('taken', 'winner');
+    });
+    document.querySelectorAll('.large-cell-winner').forEach(cell => {
+        cell.textContent = '';
+        cell.classList.remove('taken', 'draw', 'X', 'O');
+    });
+    document.querySelectorAll('.large-cell').forEach(cell => {
+        cell.classList.remove('active');
+    });
+
+    // Reset status
     document.getElementById('turn-indicator').textContent = gameMode === 'ai'
         ? getRandomMessage('turn')
-        : gameMode === 'ai-vs-ai'
-            ? 'Press "Start AI vs AI" to begin'
+        : gameMode === 'ultimate'
+            ? "Player X's Turn (Any Board)"
             : "Player X's Turn";
     document.getElementById('game-status').textContent = '';
 }
 
-// ── Attach click listeners to every cell ─────────────────────
+// ── Attach click listeners ──────────────────────────────────
 function initBoard() {
-    document.querySelectorAll('.cell').forEach(cell => {
+    // Standard board listeners
+    document.querySelectorAll('#standard-board .cell').forEach(cell => {
         cell.addEventListener('click', handleCellClick);
+    });
+
+    // Ultimate board listeners
+    document.querySelectorAll('.small-cell').forEach(cell => {
+        cell.addEventListener('click', handleSmallCellClick);
     });
 }
 
@@ -656,7 +766,6 @@ async function logout() {
     document.getElementById('password').value = '';
     document.getElementById('auth-message').textContent = 'Logged out.';
     resetGame();
-    // Reset AI settings on logout
     aiDifficulty = null;
     aiPersonality = null;
 }
@@ -667,5 +776,5 @@ function showGame(username) {
     document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
     loadHistory();
     refreshAllStats();
-    toggleAISettings();
+    toggleGameMode();
 }

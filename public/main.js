@@ -231,9 +231,164 @@ function isLargeBoardDrawn() {
     return largeBoard.every(cell => cell !== '');
 }
 
+// ── Ultimate Tic Tac Toe: AI Logic ────────────────────────────
+
+// Get all available moves for AI in Ultimate mode
+function getAvailableUltimateMoves() {
+    const moves = [];
+    for (let largeIndex = 0; largeIndex < 9; largeIndex++) {
+        if (isSmallBoardFinished(largeIndex)) continue;
+        for (let smallIndex = 0; smallIndex < 9; smallIndex++) {
+            if (smallBoards[largeIndex][smallIndex] === '') {
+                moves.push({ largeIndex, smallIndex });
+            }
+        }
+    }
+    return moves;
+}
+
+// Evaluate a move for AI in Ultimate mode
+function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
+    const playerSymbol = isAI ? 'O' : 'X';
+    const opponentSymbol = isAI ? 'X' : 'O';
+    let score = 0;
+
+    // Simulate the move
+    const originalValue = smallBoards[largeIndex][smallIndex];
+    smallBoards[largeIndex][smallIndex] = playerSymbol;
+
+    // Check if this move wins the small board
+    if (checkSmallBoardWinner(largeIndex) === playerSymbol) {
+        // If winning this small board wins the large board, highest priority
+        const tempLargeBoard = [...largeBoard];
+        tempLargeBoard[largeIndex] = playerSymbol;
+        if (checkWinner(tempLargeBoard) === playerSymbol) {
+            score += 10000;
+        } else {
+            score += 1000;
+        }
+    }
+
+    // Check if this move blocks opponent from winning the small board
+    smallBoards[largeIndex][smallIndex] = opponentSymbol;
+    if (checkSmallBoardWinner(largeIndex) === opponentSymbol) {
+        // If blocking prevents opponent from winning the large board, high priority
+        const tempLargeBoard = [...largeBoard];
+        tempLargeBoard[largeIndex] = opponentSymbol;
+        if (checkWinner(tempLargeBoard) === opponentSymbol) {
+            score += 5000; // Blocking opponent from winning the game
+        } else {
+            score += 500; // Blocking opponent from winning a small board
+        }
+    }
+    smallBoards[largeIndex][smallIndex] = playerSymbol;
+
+    // Strategic positioning: center and corners are better
+    if (smallIndex === 4) score += 10; // Center of small board
+    if ([0, 2, 6, 8].includes(smallIndex)) score += 5; // Corners of small board
+
+    // Strategic large board positioning
+    if (largeIndex === 4) score += 10; // Center of large board
+    if ([0, 2, 6, 8].includes(largeIndex)) score += 5; // Corners of large board
+
+    // Restore the board
+    smallBoards[largeIndex][smallIndex] = originalValue;
+
+    return score;
+}
+
+// Get the best AI move for Ultimate mode
+function getUltimateAIMove() {
+    const availableMoves = getAvailableUltimateMoves();
+    if (availableMoves.length === 0) return null;
+
+    if (aiDifficulty === 'easy') {
+        // Random move
+        const randomIndex = Math.floor(Math.random() * availableMoves.length);
+        return availableMoves[randomIndex];
+    }
+
+    // For medium and hard, evaluate all moves
+    let bestMove = null;
+    let bestScore = -Infinity;
+
+    for (const move of availableMoves) {
+        const score = evaluateUltimateMove(move.largeIndex, move.smallIndex, true);
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+    }
+
+    // For medium difficulty, add some randomness
+    if (aiDifficulty === 'medium' && Math.random() < 0.2) {
+        const randomIndex = Math.floor(Math.random() * availableMoves.length);
+        return availableMoves[randomIndex];
+    }
+
+    return bestMove;
+}
+
+// Make AI move for Ultimate mode
+function makeUltimateAIMove() {
+    if (ultimateGameOver) return;
+
+    const aiMove = getUltimateAIMove();
+    if (aiMove) {
+        const { largeIndex, smallIndex } = aiMove;
+        
+        // Make the move
+        smallBoards[largeIndex][smallIndex] = 'O';
+        const cell = document.querySelector(`.small-cell[data-large-index="${largeIndex}"][data-small-index="${smallIndex}"]`);
+        if (cell) {
+            cell.textContent = 'O';
+            cell.classList.add('taken');
+        }
+
+        // Check if this small board is now won
+        const smallWinner = checkSmallBoardWinner(largeIndex);
+        if (smallWinner) {
+            largeBoard[largeIndex] = smallWinner;
+            const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+            if (largeCellWinner) {
+                largeCellWinner.textContent = smallWinner;
+                largeCellWinner.classList.add('taken');
+            }
+            highlightWinner('small', largeIndex);
+        } else if (isSmallBoardDrawn(largeIndex)) {
+            largeBoard[largeIndex] = 'draw';
+            const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+            if (largeCellWinner) {
+                largeCellWinner.textContent = 'Draw';
+                largeCellWinner.classList.add('draw');
+            }
+        }
+
+        // Check if the large board is won
+        const largeWinner = checkLargeBoardWinner();
+        if (largeWinner) {
+            ultimateGameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = `AI wins the Ultimate Game! 🎉`;
+            saveGame(largeWinner, 'AI wins Ultimate Tic Tac Toe');
+        } else if (isLargeBoardDrawn()) {
+            ultimateGameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = 'Ultimate Game is a draw!';
+            saveGame(null, 'Ultimate Tic Tac Toe draw');
+        } else {
+            currentPlayer = 'X';
+            document.getElementById('turn-indicator').textContent = getRandomMessage('turn');
+        }
+    }
+}
+
 // ── Ultimate Tic Tac Toe: Handle small cell click ────────────
 function handleSmallCellClick(e) {
-    if (gameMode !== 'ultimate' || ultimateGameOver) return;
+    if ((gameMode !== 'ultimate' && gameMode !== 'ultimate-ai') || ultimateGameOver) return;
+    
+    // In AI mode, player can only play as X
+    if (gameMode === 'ultimate-ai' && currentPlayer === 'O') return;
     
     const largeIndex = parseInt(e.target.getAttribute('data-large-index'));
     const smallIndex = parseInt(e.target.getAttribute('data-small-index'));
@@ -288,7 +443,14 @@ function handleSmallCellClick(e) {
     } else {
         // Switch player
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent = `Player ${currentPlayer}'s Turn (Any Board)`;
+        document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O'
+            ? getRandomMessage('thinking')
+            : `Player ${currentPlayer}'s Turn (Any Board)`;
+        
+        // If it's AI's turn in ultimate-ai mode, make the move after a delay
+        if (gameMode === 'ultimate-ai' && currentPlayer === 'O') {
+            setTimeout(makeUltimateAIMove, 1000);
+        }
     }
 }
 
@@ -301,10 +463,10 @@ async function saveGame(winner, result) {
             body: JSON.stringify({
                 winner,
                 result,
-                board: gameMode === 'ultimate' ? { largeBoard, smallBoards } : board,
+                board: (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? { largeBoard, smallBoards } : board,
                 gameMode,
-                aiDifficulty: gameMode === 'ai' ? aiDifficulty : null,
-                aiPersonality: gameMode === 'ai' ? aiPersonality : null
+                aiDifficulty: (gameMode === 'ai' || gameMode === 'ultimate-ai') ? aiDifficulty : null,
+                aiPersonality: (gameMode === 'ai' || gameMode === 'ultimate-ai') ? aiPersonality : null
             })
         });
         if (response.ok) {
@@ -359,7 +521,7 @@ async function loadHistory() {
                 : `${game.winner} wins`;
 
             let gameDisplay;
-            if (game.gameMode === 'ultimate') {
+            if (game.gameMode === 'ultimate' || game.gameMode === 'ultimate-ai') {
                 gameDisplay = '<p>Ultimate Tic Tac Toe</p>';
             } else {
                 const cells = game.board.map((cell, i) =>
@@ -567,13 +729,20 @@ function toggleGameMode() {
         if (aiPersonality === null) aiPersonality = 'neutral';
         document.getElementById('ai-difficulty').value = aiDifficulty;
         document.getElementById('ai-personality').value = aiPersonality;
-    } else if (gameMode === 'ultimate') {
-        difficultySection.style.display = 'none';
-        personalitySection.style.display = 'none';
+    } else if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') {
+        if (gameMode === 'ultimate-ai') {
+            difficultySection.style.display = 'flex';
+            personalitySection.style.display = 'flex';
+            if (aiDifficulty === null) aiDifficulty = 'medium';
+            if (aiPersonality === null) aiPersonality = 'neutral';
+            document.getElementById('ai-difficulty').value = aiDifficulty;
+            document.getElementById('ai-personality').value = aiPersonality;
+        } else {
+            difficultySection.style.display = 'none';
+            personalitySection.style.display = 'none';
+        }
         standardBoard.style.display = 'none';
         ultimateBoard.style.display = 'block';
-        aiDifficulty = null;
-        aiPersonality = null;
     } else {
         difficultySection.style.display = 'none';
         personalitySection.style.display = 'none';
@@ -600,7 +769,7 @@ function setAIPersonality() {
 // ── Standard Tic Tac Toe: Cell click handler ────────────────
 function handleCellClick(e) {
     if (gameMode === 'ai' && currentPlayer === 'O') return;
-    if (gameMode === 'ultimate') return;
+    if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') return;
     const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
 
@@ -666,7 +835,7 @@ function resetGame() {
     // Reset status
     document.getElementById('turn-indicator').textContent = gameMode === 'ai'
         ? getRandomMessage('turn')
-        : gameMode === 'ultimate'
+        : (gameMode === 'ultimate' || gameMode === 'ultimate-ai')
             ? "Player X's Turn (Any Board)"
             : "Player X's Turn";
     document.getElementById('game-status').textContent = '';

@@ -128,13 +128,11 @@ function minimax(board, depth, isMaximizing) {
     }
 }
 
-// ── AI Logic: Easy (Random Move) ────
 function getRandomMove(board) {
     const emptyCells = board.map((cell, index) => cell === '' ? index : null).filter(val => val !== null);
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
 
-// ── AI Logic: Medium (Block/Win + Random) ─────────────────────
 function getMediumMove(board) {
     for (let i = 0; i < WIN_COMBOS.length; i++) {
         const [a, b, c] = WIN_COMBOS[i];
@@ -154,7 +152,6 @@ function getMediumMove(board) {
     return getRandomMove(board);
 }
 
-// ── AI Logic: Hard (Minimax) ──────────────────────────────────
 function getHardMove(board) {
     let bestScore = -Infinity;
     let bestMove = null;
@@ -172,7 +169,6 @@ function getHardMove(board) {
     return bestMove;
 }
 
-// ── AI makes a move based on difficulty ──────────────────────
 function getAIMove(board) {
     if (aiDifficulty === 'easy') return getRandomMove(board);
     if (aiDifficulty === 'medium') return getMediumMove(board);
@@ -180,7 +176,6 @@ function getAIMove(board) {
     return getRandomMove(board);
 }
 
-// ── Standard Tic Tac Toe: AI Move ────────────────────────────
 function makeAIMove() {
     if (gameOver) return;
     const aiMove = getAIMove(board);
@@ -209,7 +204,6 @@ function makeAIMove() {
     }
 }
 
-// ── Ultimate Tic Tac Toe: Check if a small board is won or drawn ────
 function checkSmallBoardWinner(largeIndex) {
     return checkWinner(smallBoards[largeIndex]);
 }
@@ -222,7 +216,6 @@ function isSmallBoardFinished(largeIndex) {
     return checkSmallBoardWinner(largeIndex) !== null || isSmallBoardDrawn(largeIndex);
 }
 
-// ── Ultimate Tic Tac Toe: Check if the large board is won or drawn ────
 function checkLargeBoardWinner() {
     return checkWinner(largeBoard);
 }
@@ -231,9 +224,7 @@ function isLargeBoardDrawn() {
     return largeBoard.every(cell => cell !== '');
 }
 
-// ── Ultimate Tic Tac Toe: AI Logic ────────────────────────────
-
-// Get all available moves for AI in Ultimate mode
+// Ultimate Tic Tac Toe: AI Logic
 function getAvailableUltimateMoves() {
     const moves = [];
     for (let largeIndex = 0; largeIndex < 9; largeIndex++) {
@@ -247,19 +238,14 @@ function getAvailableUltimateMoves() {
     return moves;
 }
 
-// Evaluate a move for AI in Ultimate mode
 function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
     const playerSymbol = isAI ? 'O' : 'X';
     const opponentSymbol = isAI ? 'X' : 'O';
     let score = 0;
-
-    // Simulate the move
     const originalValue = smallBoards[largeIndex][smallIndex];
     smallBoards[largeIndex][smallIndex] = playerSymbol;
 
-    // Check if this move wins the small board
     if (checkSmallBoardWinner(largeIndex) === playerSymbol) {
-        // If winning this small board wins the large board, highest priority
         const tempLargeBoard = [...largeBoard];
         tempLargeBoard[largeIndex] = playerSymbol;
         if (checkWinner(tempLargeBoard) === playerSymbol) {
@@ -269,102 +255,62 @@ function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
         }
     }
 
-    // Check if this move blocks opponent from winning the small board
     smallBoards[largeIndex][smallIndex] = opponentSymbol;
     if (checkSmallBoardWinner(largeIndex) === opponentSymbol) {
-        // If blocking prevents opponent from winning the large board, high priority
         const tempLargeBoard = [...largeBoard];
         tempLargeBoard[largeIndex] = opponentSymbol;
         if (checkWinner(tempLargeBoard) === opponentSymbol) {
-            score += 5000; // Blocking opponent from winning the game
+            score += 5000;
         } else {
-            score += 500; // Blocking opponent from winning a small board
+            score += 500;
         }
     }
     smallBoards[largeIndex][smallIndex] = playerSymbol;
 
-    // Strategic positioning: center and corners are better
-    if (smallIndex === 4) score += 10; // Center of small board
-    if ([0, 2, 6, 8].includes(smallIndex)) score += 5; // Corners of small board
-
-    // Strategic large board positioning
-    if (largeIndex === 4) score += 10; // Center of large board
-    if ([0, 2, 6, 8].includes(largeIndex)) score += 5; // Corners of large board
-
-    // Restore the board
+    if (smallIndex === 4) score += 10;
+    if ([0, 2, 6, 8].includes(smallIndex)) score += 5;
+    if (largeIndex === 4) score += 10;
+    if ([0, 2, 6, 8].includes(largeIndex)) score += 5;
     smallBoards[largeIndex][smallIndex] = originalValue;
-
     return score;
 }
 
-// Get the best AI move for Ultimate mode
 function getUltimateAIMove() {
     const availableMoves = getAvailableUltimateMoves();
     if (availableMoves.length === 0) return null;
-
     if (aiDifficulty === 'easy') {
-        // Random move
-        const randomIndex = Math.floor(Math.random() * availableMoves.length);
-        return availableMoves[randomIndex];
+        return availableMoves[Math.floor(Math.random() * availableMoves.length)];
     }
-
-    // For medium and hard, evaluate all moves
-    let bestMove = null;
-    let bestScore = -Infinity;
-
+    let bestMove = null, bestScore = -Infinity;
     for (const move of availableMoves) {
         const score = evaluateUltimateMove(move.largeIndex, move.smallIndex, true);
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove = move;
-        }
+        if (score > bestScore) { bestScore = score; bestMove = move; }
     }
-
-    // For medium difficulty, add some randomness
     if (aiDifficulty === 'medium' && Math.random() < 0.2) {
-        const randomIndex = Math.floor(Math.random() * availableMoves.length);
-        return availableMoves[randomIndex];
+        return availableMoves[Math.floor(Math.random() * availableMoves.length)];
     }
-
     return bestMove;
 }
 
-// Make AI move for Ultimate mode
 function makeUltimateAIMove() {
     if (ultimateGameOver) return;
-
     const aiMove = getUltimateAIMove();
     if (aiMove) {
         const { largeIndex, smallIndex } = aiMove;
-        
-        // Make the move
         smallBoards[largeIndex][smallIndex] = 'O';
         const cell = document.querySelector(`.small-cell[data-large-index="${largeIndex}"][data-small-index="${smallIndex}"]`);
-        if (cell) {
-            cell.textContent = 'O';
-            cell.classList.add('taken');
-        }
-
-        // Check if this small board is now won
+        if (cell) { cell.textContent = 'O'; cell.classList.add('taken'); }
         const smallWinner = checkSmallBoardWinner(largeIndex);
         if (smallWinner) {
             largeBoard[largeIndex] = smallWinner;
             const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
-            if (largeCellWinner) {
-                largeCellWinner.textContent = smallWinner;
-                largeCellWinner.classList.add('taken');
-            }
+            if (largeCellWinner) { largeCellWinner.textContent = smallWinner; largeCellWinner.classList.add('taken'); }
             highlightWinner('small', largeIndex);
         } else if (isSmallBoardDrawn(largeIndex)) {
             largeBoard[largeIndex] = 'draw';
             const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
-            if (largeCellWinner) {
-                largeCellWinner.textContent = 'Draw';
-                largeCellWinner.classList.add('draw');
-            }
+            if (largeCellWinner) { largeCellWinner.textContent = 'Draw'; largeCellWinner.classList.add('draw'); }
         }
-
-        // Check if the large board is won
         const largeWinner = checkLargeBoardWinner();
         if (largeWinner) {
             ultimateGameOver = true;
@@ -383,51 +329,26 @@ function makeUltimateAIMove() {
     }
 }
 
-// ── Ultimate Tic Tac Toe: Handle small cell click ────────────
 function handleSmallCellClick(e) {
     if ((gameMode !== 'ultimate' && gameMode !== 'ultimate-ai') || ultimateGameOver) return;
-    
-    // In AI mode, player can only play as X
     if (gameMode === 'ultimate-ai' && currentPlayer === 'O') return;
-    
     const largeIndex = parseInt(e.target.getAttribute('data-large-index'));
     const smallIndex = parseInt(e.target.getAttribute('data-small-index'));
-    
-    // Check if the small board is already won
-    if (isSmallBoardFinished(largeIndex)) {
-        return;
-    }
-    
-    // Check if the cell is already taken
-    if (smallBoards[largeIndex][smallIndex] !== '') {
-        return;
-    }
-    
-    // Make the move
+    if (isSmallBoardFinished(largeIndex) || smallBoards[largeIndex][smallIndex] !== '') return;
     smallBoards[largeIndex][smallIndex] = currentPlayer;
     e.target.textContent = currentPlayer;
     e.target.classList.add('taken');
-    
-    // Check if this small board is now won
     const smallWinner = checkSmallBoardWinner(largeIndex);
     if (smallWinner) {
         largeBoard[largeIndex] = smallWinner;
         const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
-        if (largeCellWinner) {
-            largeCellWinner.textContent = smallWinner;
-            largeCellWinner.classList.add('taken');
-        }
+        if (largeCellWinner) { largeCellWinner.textContent = smallWinner; largeCellWinner.classList.add('taken'); }
         highlightWinner('small', largeIndex);
     } else if (isSmallBoardDrawn(largeIndex)) {
         largeBoard[largeIndex] = 'draw';
         const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
-        if (largeCellWinner) {
-            largeCellWinner.textContent = 'Draw';
-            largeCellWinner.classList.add('draw');
-        }
+        if (largeCellWinner) { largeCellWinner.textContent = 'Draw'; largeCellWinner.classList.add('draw'); }
     }
-    
-    // Check if the large board is won
     const largeWinner = checkLargeBoardWinner();
     if (largeWinner) {
         ultimateGameOver = true;
@@ -440,46 +361,30 @@ function handleSmallCellClick(e) {
         document.getElementById('game-status').textContent = 'Ultimate Game is a draw!';
         saveGame(null, 'Ultimate Tic Tac Toe draw');
     } else {
-        // Switch player
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O'
-            ? getRandomMessage('thinking')
-            : `Player ${currentPlayer}'s Turn (Any Board)`;
-        
-        // If it's AI's turn in ultimate-ai mode, make the move after a delay
-        if (gameMode === 'ultimate-ai' && currentPlayer === 'O') {
-            setTimeout(makeUltimateAIMove, 1000);
-        }
+        document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O' ? getRandomMessage('thinking') : `Player ${currentPlayer}'s Turn (Any Board)`;
+        if (gameMode === 'ultimate-ai' && currentPlayer === 'O') setTimeout(makeUltimateAIMove, 1000);
     }
 }
 
-// ── Save a finished game to the server ───────────────────────
 async function saveGame(winner, result) {
     try {
         const response = await fetch('/api/games', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                winner,
-                result,
+                winner, result,
                 board: (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? { largeBoard, smallBoards } : board,
                 gameMode,
                 aiDifficulty: (gameMode === 'ai' || gameMode === 'ultimate-ai') ? aiDifficulty : null,
                 aiPersonality: (gameMode === 'ai' || gameMode === 'ultimate-ai') ? aiPersonality : null
             })
         });
-        if (response.ok) {
-            loadHistory();
-            setTimeout(() => refreshAllStats(), 300);
-        } else {
-            console.warn('Game not saved (not logged in?)');
-        }
-    } catch (err) {
-        console.error('Error saving game:', err);
-    }
+        if (response.ok) { loadHistory(); setTimeout(() => refreshAllStats(), 300); }
+        else console.warn('Game not saved (not logged in?)');
+    } catch (err) { console.error('Error saving game:', err); }
 }
 
-// ── Refresh all CP08-stats (stats and leaderboards) ─────────
 async function refreshAllStats() {
     try {
         const statsElements = document.querySelectorAll('.stat-value, .global-stat-value');
@@ -487,230 +392,143 @@ async function refreshAllStats() {
         await Promise.all([
             loadStats(),
             loadLeaderboard(),
+            loadLeaderboardByMode(),
             loadAIStats(),
-            loadAILeaderboard()
+            loadAILeaderboard(),
+            loadAILeaderboardByMode()
         ]);
-    } catch (err) {
-        console.error('Error refreshing stats:', err);
-    }
+    } catch (err) { console.error('Error refreshing stats:', err); }
 }
 
-// ── Load and display game history ────────────────────────────
 async function loadHistory() {
     const historyList = document.getElementById('history-list');
     if (!historyList) return;
-
     try {
         const response = await fetch('/api/games');
-        if (!response.ok) {
-            historyList.innerHTML = '<p>Log in to see your history.</p>';
-            return;
-        }
-
+        if (!response.ok) { historyList.innerHTML = '<p>Log in to see your history.</p>'; return; }
         const games = await response.json();
-        if (games.length === 0) {
-            historyList.innerHTML = '<p>No games played yet.</p>';
-            return;
-        }
-
+        if (games.length === 0) { historyList.innerHTML = '<p>No games played yet.</p>'; return; }
         historyList.innerHTML = games.map(game => {
             const date = new Date(game.playedAt).toLocaleString();
-            const resultText = game.result === 'draw'
-                ? 'Draw'
-                : `${game.winner} wins`;
-
-            let gameDisplay;
-            if (game.gameMode === 'ultimate' || game.gameMode === 'ultimate-ai') {
-                gameDisplay = '<p>Ultimate Tic Tac Toe</p>';
-            } else {
-                const cells = game.board.map((cell, i) =>
-                    `<span class="mini-cell" data-index="${i}">${cell}</span>`
-                ).join('');
-                gameDisplay = `<div class="mini-board">${cells}</div>`;
-            }
-
-            const difficultyInfo = game.aiDifficulty ? 
-                `<div class="game-meta">Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>` : '';
-
-            return `
-                <div class="history-card">
-                    <div class="history-meta">
-                        <span class="history-result">${resultText}</span>
-                        <span class="history-date">${date}</span>
-                    </div>
-                    ${difficultyInfo}
-                    ${gameDisplay}
-                </div>
-            `;
+            const resultText = game.result === 'draw' ? 'Draw' : `${game.winner} wins`;
+            let gameDisplay = (game.gameMode === 'ultimate' || game.gameMode === 'ultimate-ai') ? '<p>Ultimate Tic Tac Toe</p>' : `<div class="mini-board">${game.board.map((cell, i) => `<span class="mini-cell" data-index="${i}">${cell}</span>`).join('')}</div>`;
+            const difficultyInfo = game.aiDifficulty ? `<div class="game-meta">Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>` : '';
+            return `<div class="history-card"><div class="history-meta"><span class="history-result">${resultText}</span><span class="history-date">${date}</span></div>${difficultyInfo}${gameDisplay}</div>`;
         }).join('');
-
-    } catch (err) {
-        historyList.innerHTML = '<p>Could not load history.</p>';
-        console.error(err);
-    }
+    } catch (err) { historyList.innerHTML = '<p>Could not load history.</p>'; console.error(err); }
 }
 
-// ── Load and display player stats (by difficulty + global) ───
 async function loadStats() {
     try {
         const response = await fetch('/api/stats');
-        if (!response.ok) {
-            console.warn('Not logged in or no stats available.');
-            return;
-        }
-
+        if (!response.ok) { console.warn('Not logged in or no stats available.'); return; }
         const data = await response.json();
         const byDifficulty = data.byDifficulty || {};
         const global = data.global || { wins: 0, losses: 0, draws: 0 };
-
         ['easy', 'medium', 'hard'].forEach(difficulty => {
             const difficultyStats = byDifficulty[difficulty] || { wins: 0, losses: 0, draws: 0 };
             document.getElementById(`${difficulty}-wins`).textContent = difficultyStats.wins;
             document.getElementById(`${difficulty}-losses`).textContent = difficultyStats.losses;
             document.getElementById(`${difficulty}-draws`).textContent = difficultyStats.draws;
         });
-
         document.getElementById('global-wins').textContent = global.wins;
         document.getElementById('global-losses').textContent = global.losses;
         document.getElementById('global-draws').textContent = global.draws;
-
         const totalGames = global.wins + global.losses + global.draws;
         const winRate = totalGames > 0 ? Math.round((global.wins / totalGames) * 100) : 0;
         document.getElementById('global-win-rate').textContent = `${winRate}%`;
-
-    } catch (err) {
-        console.error('Error loading player stats:', err);
-    }
+    } catch (err) { console.error('Error loading player stats:', err); }
 }
 
-// ── Load and display AI stats (global) ───────────────────────
 async function loadAIStats() {
     try {
         const response = await fetch('/api/ai-stats');
-        if (!response.ok) {
-            console.warn('Could not load AI stats.');
-            return;
-        }
-
+        if (!response.ok) { console.warn('Could not load AI stats.'); return; }
         const data = await response.json();
         const globalAI = data.global || { wins: 0, losses: 0, draws: 0, winRate: 0 };
-
         document.getElementById('ai-global-wins').textContent = globalAI.wins;
         document.getElementById('ai-global-losses').textContent = globalAI.losses;
         document.getElementById('ai-global-draws').textContent = globalAI.draws;
         document.getElementById('ai-global-win-rate').textContent = `${globalAI.winRate}%`;
-
-    } catch (err) {
-        console.error('Error loading AI stats:', err);
-    }
+    } catch (err) { console.error('Error loading AI stats:', err); }
 }
 
-// ── Load and display player leaderboard ──────────────────────
+// Load player leaderboard (combined)
 async function loadLeaderboard() {
     try {
         const response = await fetch('/api/leaderboard');
-        if (!response.ok) {
-            console.warn('Could not load player leaderboard.');
-            return;
-        }
-
+        if (!response.ok) { console.warn('Could not load player leaderboard.'); return; }
         const leaderboard = await response.json();
         const leaderboardBody = document.getElementById('leaderboard-body');
-
-        if (leaderboard.length === 0) {
-            leaderboardBody.innerHTML = '<tr><td colspan="5">No players on the leaderboard yet.</td></tr>';
-            return;
-        }
-
+        if (leaderboard.length === 0) { leaderboardBody.innerHTML = '<tr><td colspan="5">No players on the leaderboard yet.</td></tr>'; return; }
         leaderboardBody.innerHTML = leaderboard.map((entry, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${entry.username}</td>
-                <td>${entry.totalWins}</td>
-                <td>${entry.totalGames}</td>
-                <td>${entry.winRate}%</td>
-            </tr>
+            <tr><td>${index + 1}</td><td>${entry.username}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
         `).join('');
-
-    } catch (err) {
-        console.error('Error loading player leaderboard:', err);
-    }
+    } catch (err) { console.error('Error loading player leaderboard:', err); }
 }
 
-// ── Load and display AI leaderboard ──────────────────────────
+// Load player leaderboard separated by game mode
+async function loadLeaderboardByMode() {
+    try {
+        const response = await fetch('/api/leaderboard/by-mode');
+        if (!response.ok) { console.warn('Could not load player leaderboard by mode.'); return; }
+        const leaderboard = await response.json();
+        const leaderboardBody = document.getElementById('leaderboard-by-mode-body');
+        if (leaderboard.length === 0) { leaderboardBody.innerHTML = '<tr><td colspan="6">No players on the leaderboard yet.</td></tr>'; return; }
+        leaderboardBody.innerHTML = leaderboard.map((entry, index) => `
+            <tr><td>${index + 1}</td><td>${entry.username}</td><td>${entry.gameMode}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
+        `).join('');
+    } catch (err) { console.error('Error loading player leaderboard by mode:', err); }
+}
+
+// Load AI leaderboard (combined)
 async function loadAILeaderboard() {
     try {
         const response = await fetch('/api/ai-leaderboard');
-        if (!response.ok) {
-            console.warn('Could not load AI leaderboard.');
-            return;
-        }
-
+        if (!response.ok) { console.warn('Could not load AI leaderboard.'); return; }
         const aiLeaderboard = await response.json();
         const aiLeaderboardBody = document.getElementById('ai-leaderboard-body');
-
-        if (aiLeaderboard.length === 0) {
-            aiLeaderboardBody.innerHTML = '<tr><td colspan="6">No AI configurations on the leaderboard yet.</td></tr>';
-            return;
-        }
-
+        if (aiLeaderboard.length === 0) { aiLeaderboardBody.innerHTML = '<tr><td colspan="6">No AI configurations on the leaderboard yet.</td></tr>'; return; }
         aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => `
-            <tr>
-                <td>${index + 1}</td>
-                <td>${entry.difficulty}</td>
-                <td>${entry.personality}</td>
-                <td>${entry.totalWins}</td>
-                <td>${entry.totalGames}</td>
-                <td>${entry.winRate}%</td>
-            </tr>
+            <tr><td>${index + 1}</td><td>${entry.difficulty}</td><td>${entry.personality}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
         `).join('');
-
-    } catch (err) {
-        console.error('Error loading AI leaderboard:', err);
-    }
+    } catch (err) { console.error('Error loading AI leaderboard:', err); }
 }
 
-// ── Reset stats for a specific difficulty ──────────────────
+// Load AI leaderboard separated by game mode
+async function loadAILeaderboardByMode() {
+    try {
+        const response = await fetch('/api/ai-leaderboard/by-mode');
+        if (!response.ok) { console.warn('Could not load AI leaderboard by mode.'); return; }
+        const aiLeaderboard = await response.json();
+        const aiLeaderboardBody = document.getElementById('ai-leaderboard-by-mode-body');
+        if (aiLeaderboard.length === 0) { aiLeaderboardBody.innerHTML = '<tr><td colspan="7">No AI configurations on the leaderboard yet.</td></tr>'; return; }
+        aiLeaderboardBody.innerHTML = aiLeaderboard.map((entry, index) => `
+            <tr><td>${index + 1}</td><td>${entry.difficulty}</td><td>${entry.personality}</td><td>${entry.gameMode}</td><td>${entry.totalWins}</td><td>${entry.totalGames}</td><td>${entry.winRate}%</td></tr>
+        `).join('');
+    } catch (err) { console.error('Error loading AI leaderboard by mode:', err); }
+}
+
 async function resetStats(difficulty) {
     if (!confirm(`Are you sure you want to reset your ${difficulty} difficulty stats?`)) return;
-    
     try {
         const response = await fetch('/api/stats/reset', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ difficulty })
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ difficulty })
         });
-        
-        if (response.ok) {
-            refreshAllStats();
-            alert(`Stats reset for ${difficulty} difficulty!`);
-        } else {
-            const data = await response.json();
-            alert(data.error || 'Failed to reset stats.');
-        }
-    } catch (err) {
-        console.error('Error resetting stats:', err);
-    }
+        if (response.ok) { refreshAllStats(); alert(`Stats reset for ${difficulty} difficulty!`); }
+        else { const data = await response.json(); alert(data.error || 'Failed to reset stats.'); }
+    } catch (err) { console.error('Error resetting stats:', err); }
 }
 
-// ── Clear game history for the logged-in user ──────────────
 async function clearHistory() {
     if (!confirm('Are you sure you want to clear your game history?')) return;
     try {
         const response = await fetch('/api/games', { method: 'DELETE' });
-        if (response.ok) {
-            loadHistory();
-            refreshAllStats();
-            alert('History cleared!');
-        } else {
-            alert('Failed to clear history.');
-        }
-    } catch (err) {
-        console.error('Error clearing history:', err);
-    }
+        if (response.ok) { loadHistory(); refreshAllStats(); alert('History cleared!'); }
+        else alert('Failed to clear history.');
+    } catch (err) { console.error('Error clearing history:', err); }
 }
 
-// ── Toggle game mode settings visibility ────────────────────
 function toggleGameMode() {
     const modeSelect = document.getElementById('game-mode');
     gameMode = modeSelect.value;
@@ -718,7 +536,6 @@ function toggleGameMode() {
     const personalitySection = document.getElementById('personality-section');
     const standardBoard = document.getElementById('standard-board');
     const ultimateBoard = document.getElementById('ultimate-board');
-
     if (gameMode === 'ai') {
         difficultySection.style.display = 'flex';
         personalitySection.style.display = 'flex';
@@ -747,167 +564,52 @@ function toggleGameMode() {
         personalitySection.style.display = 'none';
         standardBoard.style.display = 'grid';
         ultimateBoard.style.display = 'none';
-        aiDifficulty = null;
-        aiPersonality = null;
+        aiDifficulty = null; aiPersonality = null;
     }
     resetGame();
 }
 
-// ── Set AI difficulty ────────────────────────────────────────
-function setAIDifficulty() {
-    const difficultySelect = document.getElementById('ai-difficulty');
-    aiDifficulty = difficultySelect.value;
-}
+function setAIDifficulty() { aiDifficulty = document.getElementById('ai-difficulty').value; }
+function setAIPersonality() { aiPersonality = document.getElementById('ai-personality').value; }
 
-// ── Set AI personality ───────────────────────────────────────
-function setAIPersonality() {
-    const personalitySelect = document.getElementById('ai-personality');
-    aiPersonality = personalitySelect.value;
-}
-
-// ── Standard Tic Tac Toe: Cell click handler ────────────────
 function handleCellClick(e) {
     if (gameMode === 'ai' && currentPlayer === 'O') return;
     if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') return;
     const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
-
-    board[index] = currentPlayer;
-    e.target.textContent = currentPlayer;
-    e.target.classList.add('taken');
-
+    board[index] = currentPlayer; e.target.textContent = currentPlayer; e.target.classList.add('taken');
     const winner = checkWinner(board);
-    if (winner) {
-        gameOver = true;
-        document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = getRandomMessage('win', winner);
-        highlightWinner('standard');
-        saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
-    } else if (checkDraw(board)) {
-        gameOver = true;
-        document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = getRandomMessage('draw');
-        saveGame(null, 'draw');
-    } else {
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-            ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking'))
-            : `Player ${currentPlayer}'s Turn`;
-
-        if (gameMode === 'ai' && currentPlayer === 'O') {
-            setTimeout(makeAIMove, 500);
-        }
-    }
+    if (winner) { gameOver = true; document.getElementById('turn-indicator').textContent = ''; document.getElementById('game-status').textContent = getRandomMessage('win', winner); highlightWinner('standard'); saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins'); }
+    else if (checkDraw(board)) { gameOver = true; document.getElementById('turn-indicator').textContent = ''; document.getElementById('game-status').textContent = getRandomMessage('draw'); saveGame(null, 'draw'); }
+    else { currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; document.getElementById('turn-indicator').textContent = gameMode === 'ai' ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking')) : `Player ${currentPlayer}'s Turn`; if (gameMode === 'ai' && currentPlayer === 'O') setTimeout(makeAIMove, 500); }
 }
 
-// ── Reset the game ───────────────────────────────────────────
 function resetGame() {
-    // Reset standard board
-    board = ['', '', '', '', '', '', '', '', ''];
-    currentPlayer = 'X';
-    gameOver = false;
-    ultimateGameOver = false;
-
-    // Reset ultimate board
-    largeBoard = ['', '', '', '', '', '', '', '', ''];
-    smallBoards = Array(9).fill().map(() => Array(9).fill(''));
-
-    // Reset UI for standard board
-    document.querySelectorAll('#standard-board .cell').forEach(cell => {
-        cell.textContent = '';
-        cell.classList.remove('taken', 'winner');
-    });
-
-    // Reset UI for ultimate board
-    document.querySelectorAll('.small-cell').forEach(cell => {
-        cell.textContent = '';
-        cell.classList.remove('taken', 'winner');
-    });
-    document.querySelectorAll('.large-cell-winner').forEach(cell => {
-        cell.textContent = '';
-        cell.classList.remove('taken', 'draw', 'X', 'O');
-    });
-    document.querySelectorAll('.large-cell').forEach(cell => {
-        cell.classList.remove('active');
-    });
-
-    // Reset status
-    document.getElementById('turn-indicator').textContent = gameMode === 'ai'
-        ? getRandomMessage('turn')
-        : (gameMode === 'ultimate' || gameMode === 'ultimate-ai')
-            ? "Player X's Turn (Any Board)"
-            : "Player X's Turn";
+    board = ['', '', '', '', '', '', '', '', '']; currentPlayer = 'X'; gameOver = false; ultimateGameOver = false;
+    largeBoard = ['', '', '', '', '', '', '', '', '']; smallBoards = Array(9).fill().map(() => Array(9).fill(''));
+    document.querySelectorAll('#standard-board .cell').forEach(cell => { cell.textContent = ''; cell.classList.remove('taken', 'winner'); });
+    document.querySelectorAll('.small-cell').forEach(cell => { cell.textContent = ''; cell.classList.remove('taken', 'winner'); });
+    document.querySelectorAll('.large-cell-winner').forEach(cell => { cell.textContent = ''; cell.classList.remove('taken', 'draw', 'X', 'O'); });
+    document.querySelectorAll('.large-cell').forEach(cell => { cell.classList.remove('active'); });
+    document.getElementById('turn-indicator').textContent = gameMode === 'ai' ? getRandomMessage('turn') : (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? "Player X's Turn (Any Board)" : "Player X's Turn";
     document.getElementById('game-status').textContent = '';
 }
 
-// ── Attach click listeners ──────────────────────────────────
 function initBoard() {
-    // Standard board listeners
-    document.querySelectorAll('#standard-board .cell').forEach(cell => {
-        cell.addEventListener('click', handleCellClick);
-    });
-
-    // Ultimate board listeners
-    document.querySelectorAll('.small-cell').forEach(cell => {
-        cell.addEventListener('click', handleSmallCellClick);
-    });
+    document.querySelectorAll('#standard-board .cell').forEach(cell => { cell.addEventListener('click', handleCellClick); });
+    document.querySelectorAll('.small-cell').forEach(cell => { cell.addEventListener('click', handleSmallCellClick); });
 }
 
-// ── Auth ──────────────────────────────────────────────────────
 window.onload = async () => {
     initBoard();
     const response = await fetch('/api/me');
-    if (response.ok) {
-        const data = await response.json();
-        showGame(data.username);
-    }
+    if (response.ok) { const data = await response.json(); showGame(data.username); }
 };
 
-async function register() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await response.json();
-    document.getElementById('auth-message').textContent = data.error || data.message;
-}
+async function register() { const username = document.getElementById('username').value; const password = document.getElementById('password').value; const response = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }); const data = await response.json(); document.getElementById('auth-message').textContent = data.error || data.message; }
 
-async function login() {
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await response.json();
-    if (response.ok) {
-        showGame(data.username);
-    } else {
-        document.getElementById('auth-message').textContent = data.error;
-    }
-}
+async function login() { const username = document.getElementById('username').value; const password = document.getElementById('password').value; const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }); const data = await response.json(); if (response.ok) showGame(data.username); else document.getElementById('auth-message').textContent = data.error; }
 
-async function logout() {
-    await fetch('/api/logout', { method: 'POST' });
-    document.getElementById('game-section').style.display = 'none';
-    document.getElementById('auth-section').style.display = 'block';
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
-    document.getElementById('auth-message').textContent = 'Logged out.';
-    resetGame();
-    aiDifficulty = null;
-    aiPersonality = null;
-}
+async function logout() { await fetch('/api/logout', { method: 'POST' }); document.getElementById('game-section').style.display = 'none'; document.getElementById('auth-section').style.display = 'block'; document.getElementById('username').value = ''; document.getElementById('password').value = ''; document.getElementById('auth-message').textContent = 'Logged out.'; resetGame(); aiDifficulty = null; aiPersonality = null; }
 
-function showGame(username) {
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('game-section').style.display = 'block';
-    document.getElementById('welcome-message').textContent = `Welcome, ${username}!`;
-    loadHistory();
-    refreshAllStats();
-    toggleGameMode();
-}
+function showGame(username) { document.getElementById('auth-section').style.display = 'none'; document.getElementById('game-section').style.display = 'block'; document.getElementById('welcome-message').textContent = `Welcome, ${username}!`; loadHistory(); refreshAllStats(); toggleGameMode(); }

@@ -30,6 +30,7 @@
                 <select id="game-mode" onchange="toggleAISettings()">
                     <option value="pvp">Player vs Player</option>
                     <option value="ai">Player vs AI</option>
+                    <option value="ai-vs-ai">AI vs AI</option>
                 </select>
             </div>
 
@@ -50,6 +51,8 @@
                     <option value="psychologist">Psychologist</option>
                 </select>
             </div>
+
+            <button id="ai-vs-ai-btn" onclick="startAIVsAI()" style="display: none; margin-top: 10px;">Start AI vs AI</button>
         </div>
 
         <p id="turn-indicator">Player X's Turn</p>

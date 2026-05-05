@@ -203,6 +203,45 @@ function makeAIMove() {
     }
 }
 
+// ── AI vs AI: AI makes a move as X ────────────────────────
+function makeAIMoveAsX() {
+    if (gameOver || gameMode !== 'ai-vs-ai') return;
+    const aiMove = getAIMove();
+    if (aiMove !== null) {
+        board[aiMove] = 'X';
+        const cells = document.querySelectorAll('.cell');
+        cells[aiMove].textContent = 'X';
+        cells[aiMove].classList.add('taken');
+
+        const winner = checkWinner();
+        if (winner) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = `AI (X)${getRandomMessage('win', 'X')}`;
+            highlightWinner();
+            saveGame(winner, 'AI (X) wins');
+        } else if (checkDraw()) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = getRandomMessage('draw');
+            saveGame(null, 'draw');
+        } else {
+            currentPlayer = 'O';
+            document.getElementById('turn-indicator').textContent = getRandomMessage('thinking');
+            setTimeout(makeAIMove, 1000);
+        }
+    }
+}
+
+// ── Start AI vs AI game ────────────────────────────────────
+function startAIVsAI() {
+    if (gameMode !== 'ai-vs-ai') return;
+    resetGame();
+    currentPlayer = 'X';
+    document.getElementById('turn-indicator').textContent = 'AI (X) is thinking...';
+    setTimeout(makeAIMoveAsX, 1000);
+}
+
 // ── Save a finished game to the server ───────────────────────
 async function saveGame(winner, result) {
     try {
@@ -214,8 +253,9 @@ async function saveGame(winner, result) {
                 winner,
                 result,
                 board,
-                aiDifficulty: gameMode === 'ai' ? aiDifficulty : null,
-                aiPersonality: gameMode === 'ai' ? aiPersonality : null
+                gameMode,
+                aiDifficulty: gameMode === 'ai' || gameMode === 'ai-vs-ai' ? aiDifficulty : null,
+                aiPersonality: gameMode === 'ai' || gameMode === 'ai-vs-ai' ? aiPersonality : null
             })
         });
         if (response.ok) {
@@ -464,18 +504,32 @@ function toggleAISettings() {
     gameMode = modeSelect.value;
     const difficultySection = document.getElementById('difficulty-section');
     const personalitySection = document.getElementById('personality-section');
+    const aiVsAiBtn = document.getElementById('ai-vs-ai-btn');
 
     if (gameMode === 'ai') {
         difficultySection.style.display = 'flex';
         personalitySection.style.display = 'flex';
+        if (aiVsAiBtn) aiVsAiBtn.style.display = 'none';
         // Set defaults for AI mode
         if (aiDifficulty === null) aiDifficulty = 'medium';
         if (aiPersonality === null) aiPersonality = 'neutral';
         document.getElementById('ai-difficulty').value = aiDifficulty;
         document.getElementById('ai-personality').value = aiPersonality;
-    } else {
+    }
+    else if (gameMode === 'ai-vs-ai') {
+        difficultySection.style.display = 'flex';
+        personalitySection.style.display = 'flex';
+        if (aiVsAiBtn) aiVsAiBtn.style.display = 'block';
+        // Set defaults for AI vs AI mode
+        if (aiDifficulty === null) aiDifficulty = 'medium';
+        if (aiPersonality === null) aiPersonality = 'neutral';
+        document.getElementById('ai-difficulty').value = aiDifficulty;
+        document.getElementById('ai-personality').value = aiPersonality;
+    }
+    else {
         difficultySection.style.display = 'none';
         personalitySection.style.display = 'none';
+        if (aiVsAiBtn) aiVsAiBtn.style.display = 'none';
         // Reset to null for PvP mode
         aiDifficulty = null;
         aiPersonality = null;
@@ -498,6 +552,7 @@ function setAIPersonality() {
 // ── Cell click handler ────────────────────────────────────────
 function handleCellClick(e) {
     if (gameMode === 'ai' && currentPlayer === 'O') return;
+    if (gameMode === 'ai-vs-ai') return; // Disable clicks in AI vs AI mode
     const index = parseInt(e.target.getAttribute('data-index'));
     if (board[index] !== '' || gameOver) return;
 
@@ -542,7 +597,9 @@ function resetGame() {
 
     document.getElementById('turn-indicator').textContent = gameMode === 'ai'
         ? getRandomMessage('turn')
-        : "Player X's Turn";
+        : gameMode === 'ai-vs-ai'
+            ? 'Press "Start AI vs AI" to begin'
+            : "Player X's Turn";
     document.getElementById('game-status').textContent = '';
 }
 

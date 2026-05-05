@@ -70,5 +70,43 @@
       "X"
     ],
     "playedAt": "2026-04-29T17:59:00.022Z"
+  },
+  {
+    "id": 1777704795141,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "X",
+      "O",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O"
+    ],
+    "playedAt": "2026-05-02T06:53:15.141Z"
+  },
+  {
+    "id": 1777948326764,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "AI wins",
+    "board": [
+      "X",
+      "X",
+      "O",
+      "",
+      "O",
+      "X",
+      "O",
+      "X",
+      "O"
+    ],
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-05T02:32:06.764Z"
   }
 ]

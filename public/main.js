@@ -12,14 +12,29 @@ let smallBoards = Array(9).fill().map(() => Array(9).fill('')); // 9 small board
 let ultimateGameOver = false;
 
 // ── AI Learning Data ───────────────────────────────────────
-// Stores learned patterns for each personality
 let aiLearningData = {
     neutral: null,
     mathematician: null,
     psychologist: null
 };
-// Tracks AI moves during current game for learning
 let aiMoveHistory = [];
+
+// ── Tournament State ───────────────────────────────────────
+let tournament = {
+    active: false,
+    size: 32,
+    type: 'group_knockout', // 'group_knockout' or 'single_elimination'
+    stage: 'setup', // 'setup', 'group', 'knockout', 'finished'
+    players: [],
+    groups: [],
+    groupResults: {}, // { groupIndex: [{player, wins, losses, draws, points}] }
+    knockoutBracket: [],
+    currentGroupIndex: 0,
+    currentGroupMatch: 0,
+    currentKnockoutRound: 0,
+    currentKnockoutMatch: 0,
+    matchHistory: []
+};
 
 const WIN_COMBOS = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -72,7 +87,6 @@ const personalities = {
         draw: ["It's a draw! 🤝", "A tie! Close game!", "Draw! Want a rematch?", "No winner this time!"],
         thinking: ["AI is thinking...", "Calculating...", "Making a move...", "Processing..."],
         turn: ["Your Turn", "Your move", "Go ahead", "Make your move"],
-        // Default pattern weights
         patternWeights: {
             winSmallBoard: 1000,
             blockSmallBoard: 1000,
@@ -90,7 +104,6 @@ const personalities = {
         draw: ["A perfect equilibrium! 1-1=0", "The game is in balance.", "A draw! The math checks out.", "Symmetry achieved!"],
         thinking: ["Calculating optimal move...", "Running simulations...", "Solving the equation...", "Analyzing probabilities..."],
         turn: ["Your move, human.", "Input your coordinates.", "What's your next variable?", "Your turn to solve."],
-        // Aggressive center control
         patternWeights: {
             winSmallBoard: 1500,
             blockSmallBoard: 800,
@@ -108,7 +121,6 @@ const personalities = {
         draw: ["A stalemate. Your subconscious is strong.", "A draw! We're equally matched.", "No winner. The mind is complex.", "A tie. What were you thinking?"],
         thinking: ["Analyzing your patterns...", "Reading your mind...", "Predicting your next move...", "Studying your behavior..."],
         turn: ["What's your next move?", "Show me your strategy.", "Where will you go?", "Your turn to reveal yourself."],
-        // Defensive, predictive
         patternWeights: {
             winSmallBoard: 800,
             blockSmallBoard: 1500,
@@ -168,7 +180,6 @@ function getCurrentPatternWeights() {
     const defaultWeights = personalities[personality]?.patternWeights || personalities.neutral.patternWeights;
     const learnedWeights = aiLearningData[personality] || {};
     
-    // Merge learned weights with defaults
     return { ...defaultWeights, ...learnedWeights };
 }
 
@@ -376,12 +387,10 @@ function getUltimateAIMove() {
     const p = personalities[personality] || personalities.neutral;
 
     if (aiDifficulty === 'easy') {
-        // Random move
         const randomIndex = Math.floor(Math.random() * availableMoves.length);
         return availableMoves[randomIndex];
     }
 
-    // For medium and hard, evaluate all moves
     let bestMove = null;
     let bestScore = -Infinity;
 
@@ -393,7 +402,6 @@ function getUltimateAIMove() {
         }
     }
 
-    // CP10-c2: Personality-based randomness
     let randomness = 0.2;
     if (personality === 'mathematician') randomness = 0.1;
     if (personality === 'psychologist') randomness = 0.3;
@@ -433,7 +441,6 @@ function makeUltimateAIMove() {
             largeBoard: [...largeBoard],
             smallBoards: smallBoards.map(arr => [...arr])
         };
-        const weights = getCurrentPatternWeights();
         const score = evaluateUltimateMove(largeIndex, smallIndex, true);
         recordAIMove(largeIndex, smallIndex, score, boardSnapshot);
         
@@ -536,6 +543,17 @@ async function saveGame(winner, result) {
             outcome: winner === 'O' ? 'ai_win' : winner ? 'player_win' : 'draw'
         } : null;
         
+        // Include tournament data if in tournament mode
+        const tournamentData = tournament.active ? {
+            tournament: tournament,
+            matchResult: {
+                winner: winner,
+                result: result,
+                player1: tournament.currentMatchPlayers?.[0],
+                player2: tournament.currentMatchPlayers?.[1]
+            }
+        } : null;
+        
         const response = await fetch('/api/games', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -547,6 +565,7 @@ async function saveGame(winner, result) {
                 aiDifficulty: isAIGame ? aiDifficulty : null,
                 aiPersonality: isAIGame ? aiPersonality : null,
                 learningData: learningData,
+                tournamentData: tournamentData,
                 playedAt: new Date().toISOString()
             })
         });
@@ -581,7 +600,781 @@ async function loadAILearningData() {
         if (response.ok) {
             const data = await response.json();
             aiLearningData[aiPersonality] = data.learningData || {};
-            console.log(`Loaded learning data for ${aiPersonality}:`, aiLearningData[aiPersonality]);
+        } else {
+            console.warn('Could not load AI learning data');
+        }
+    } catch (err) {
+        console.error('Error loading AI learning data:', err);
+    }
+}
+
+// ========== TOURNAMENT FUNCTIONS ==========
+
+// Update tournament UI based on selected size
+function updateTournamentUI() {
+    const size = parseInt(document.getElementById('tournament-size').value);
+    const playersContainer = document.getElementById('tournament-players-container');
+    
+    // Clear existing player inputs
+    playersContainer.innerHTML = '';
+    
+    // Add player inputs based on size
+    for (let i = 0; i < size; i++) {
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'tournament-player-input';
+        playerDiv.innerHTML = `
+            <span>Player ${i + 1}:</span>
+            <input type="text" placeholder="Player ${i + 1} Name" data-player-index="${i}">
+        `;
+        playersContainer.appendChild(playerDiv);
+    }
+    
+    // Show start button
+    document.getElementById('start-tournament-btn').style.display = 'inline-block';
+}
+
+// Add a player to the tournament
+function addTournamentPlayer() {
+    const size = parseInt(document.getElementById('tournament-size').value);
+    const playersContainer = document.getElementById('tournament-players-container');
+    const currentCount = playersContainer.querySelectorAll('input').length;
+    
+    if (currentCount < size) {
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'tournament-player-input';
+        playerDiv.innerHTML = `
+            <span>Player ${currentCount + 1}:</span>
+            <input type="text" placeholder="Player ${currentCount + 1} Name" data-player-index="${currentCount}">
+        `;
+        playersContainer.appendChild(playerDiv);
+    }
+}
+
+// Start the tournament
+function startTournament() {
+    const size = parseInt(document.getElementById('tournament-size').value);
+    const type = document.getElementById('tournament-type').value;
+    const playersContainer = document.getElementById('tournament-players-container');
+    const playerInputs = playersContainer.querySelectorAll('input');
+    
+    // Get player names
+    const players = [];
+    for (let i = 0; i < size; i++) {
+        const input = playerInputs[i];
+        const name = input.value.trim() || `Player ${i + 1}`;
+        players.push({ id: i, name: name, wins: 0, losses: 0, draws: 0, points: 0 });
+    }
+    
+    if (players.length < 2) {
+        alert('Please add at least 2 players!');
+        return;
+    }
+    
+    // Initialize tournament
+    tournament = {
+        active: true,
+        size: size,
+        type: type,
+        stage: 'group',
+        players: players,
+        groups: [],
+        groupResults: {},
+        knockoutBracket: [],
+        currentGroupIndex: 0,
+        currentGroupMatch: 0,
+        currentKnockoutRound: 0,
+        currentKnockoutMatch: 0,
+        matchHistory: [],
+        currentMatchPlayers: null
+    };
+    
+    // Generate groups
+    generateTournamentGroups();
+    
+    // Display tournament
+    displayTournament();
+    
+    // Start first match
+    startNextTournamentMatch();
+}
+
+// Generate tournament groups (groups of 4)
+function generateTournamentGroups() {
+    const { size, players } = tournament;
+    const groupSize = 4;
+    const numGroups = Math.ceil(size / groupSize);
+    
+    // Shuffle players randomly
+    const shuffledPlayers = [...players];
+    for (let i = shuffledPlayers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]];
+    }
+    
+    // Create groups
+    tournament.groups = [];
+    for (let g = 0; g < numGroups; g++) {
+        const groupPlayers = shuffledPlayers.slice(g * groupSize, (g + 1) * groupSize);
+        tournament.groups.push({
+            id: g,
+            players: groupPlayers.map(p => ({ ...p })),
+            matches: [],
+            completed: false
+        });
+        
+        // Initialize group results
+        tournament.groupResults[g] = [];
+    }
+    
+    // Generate matches for each group (round-robin)
+    for (let g = 0; g < numGroups; g++) {
+        const group = tournament.groups[g];
+        const playersInGroup = group.players;
+        
+        // Create round-robin matches
+        for (let i = 0; i < playersInGroup.length; i++) {
+            for (let j = i + 1; j < playersInGroup.length; j++) {
+                group.matches.push({
+                    player1: playersInGroup[i].id,
+                    player2: playersInGroup[j].id,
+                    winner: null,
+                    completed: false
+                });
+            }
+        }
+    }
+}
+
+// Display tournament bracket/structure
+function displayTournament() {
+    const bracketDiv = document.getElementById('tournament-bracket');
+    const stageTitle = document.getElementById('tournament-stage-title');
+    const nextBtn = document.getElementById('next-match-btn');
+    const endBtn = document.getElementById('end-tournament-btn');
+    
+    // Hide game boards
+    document.getElementById('standard-board').style.display = 'none';
+    document.getElementById('ultimate-board').style.display = 'none';
+    
+    // Show tournament display
+    document.getElementById('tournament-display').style.display = 'block';
+    
+    // Update stage title
+    if (tournament.stage === 'group') {
+        stageTitle.textContent = `Tournament - Group Stage (Group ${tournament.currentGroupIndex + 1}/${tournament.groups.length})`;
+        nextBtn.style.display = 'inline-block';
+        endBtn.style.display = 'none';
+    } else if (tournament.stage === 'knockout') {
+        stageTitle.textContent = `Tournament - Knockout Stage (Round ${tournament.currentKnockoutRound + 1})`;
+        nextBtn.style.display = 'inline-block';
+        endBtn.style.display = 'none';
+    } else {
+        stageTitle.textContent = 'Tournament - Completed';
+        nextBtn.style.display = 'none';
+        endBtn.style.display = 'inline-block';
+    }
+    
+    // Generate HTML for current stage
+    if (tournament.stage === 'group') {
+        bracketDiv.innerHTML = generateGroupStageHTML();
+    } else if (tournament.stage === 'knockout') {
+        bracketDiv.innerHTML = generateKnockoutStageHTML();
+    } else {
+        bracketDiv.innerHTML = generateTournamentResultsHTML();
+    }
+}
+
+// Generate HTML for group stage
+function generateGroupStageHTML() {
+    const group = tournament.groups[tournament.currentGroupIndex];
+    const matches = group.matches;
+    const currentMatchIndex = tournament.currentGroupMatch;
+    
+    let html = '<div class="tournament-groups">';
+    
+    // Show all groups summary
+    for (let g = 0; g < tournament.groups.length; g++) {
+        const gGroup = tournament.groups[g];
+        html += `<div class="tournament-group ${g === tournament.currentGroupIndex ? 'active' : ''}">`;
+        html += `<h4>Group ${g + 1}</h4>`;
+        
+        // Show group standings
+        if (tournament.groupResults[g] && tournament.groupResults[g].length > 0) {
+            html += '<table class="group-standings">';
+            html += '<tr><th>Rank</th><th>Player</th><th>W</th><th>L</th><th>D</th><th>Pts</th></tr>';
+            
+            // Sort by points (descending)
+            const sortedResults = [...tournament.groupResults[g]].sort((a, b) => b.points - a.points);
+            sortedResults.forEach((result, idx) => {
+                html += `<tr><td>${idx + 1}</td><td>${result.name}</td><td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td></tr>`;
+            });
+            
+            html += '</table>';
+        }
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    
+    // Show current group matches
+    html += '<div class="current-group-matches">';
+    html += `<h4>Current Group ${tournament.currentGroupIndex + 1} Matches</h4>`;
+    html += '<table class="match-list">';
+    html += '<tr><th>Match</th><th>Player 1</th><th>vs</th><th>Player 2</th><th>Result</th></tr>';
+    
+    matches.forEach((match, idx) => {
+        const player1 = group.players.find(p => p.id === match.player1);
+        const player2 = group.players.find(p => p.id === match.player2);
+        const isCurrent = idx === currentMatchIndex;
+        const resultText = match.completed ? (match.winner === null ? 'Draw' : (match.winner === match.player1 ? 'W' : 'L')) : '';
+        
+        html += `<tr class="${isCurrent ? 'current-match' : ''}">`;
+        html += `<td>${idx + 1}</td>`;
+        html += `<td>${player1.name}${isCurrent ? ' *' : ''}</td>`;
+        html += `<td>vs</td>`;
+        html += `<td>${player2.name}${isCurrent ? ' *' : ''}</td>`;
+        html += `<td>${resultText}</td>`;
+        html += `</tr>`;
+    });
+    
+    html += '</table>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Generate HTML for knockout stage
+function generateKnockoutStageHTML() {
+    const bracket = tournament.knockoutBracket;
+    const currentRound = tournament.currentKnockoutRound;
+    const currentMatch = tournament.currentKnockoutMatch;
+    
+    let html = '<div class="knockout-bracket">';
+    
+    // Display bracket by round
+    for (let round = 0; round < bracket.length; round++) {
+        const roundMatches = bracket[round];
+        html += `<div class="knockout-round">`;
+        html += `<h4>Round ${round + 1} ${round === 0 ? '(Round of ' + roundMatches.length * 2 + ')' : ''}</h4>`;
+        
+        for (let matchIdx = 0; matchIdx < roundMatches.length; matchIdx++) {
+            const match = roundMatches[matchIdx];
+            const isCurrent = round === currentRound && matchIdx === currentMatch;
+            const player1Name = match.player1 ? (typeof match.player1 === 'object' ? match.player1.name : match.player1) : 'TBD';
+            const player2Name = match.player2 ? (typeof match.player2 === 'object' ? match.player2.name : match.player2) : 'TBD';
+            const resultText = match.completed ? (match.winner === null ? 'Draw' : (match.winner === match.player1 ? 'W' : 'L')) : '';
+            
+            html += `<div class="knockout-match ${isCurrent ? 'current-match' : ''}">`;
+            html += `<div class="match-player">${player1Name}${isCurrent ? ' *' : ''}</div>`;
+            html += `<div class="match-vs">vs</div>`;
+            html += `<div class="match-player">${player2Name}${isCurrent ? ' *' : ''}</div>`;
+            html += `<div class="match-result">${resultText}</div>`;
+            html += `</div>`;
+        }
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    
+    return html;
+}
+
+// Generate HTML for tournament results
+function generateTournamentResultsHTML() {
+    let html = '<div class="tournament-results">';
+    html += '<h3>Tournament Final Results</h3>';
+    
+    // Find winner
+    const winner = tournament.players.find(p => p.wins === Math.max(...tournament.players.map(p => p.wins)));
+    
+    if (winner) {
+        html += `<div class="tournament-winner">🏆 <strong>${winner.name}</strong> is the Tournament Champion! 🏆</div>`;
+    }
+    
+    // Show final standings
+    html += '<table class="final-standings">';
+    html += '<tr><th>Rank</th><th>Player</th><th>Wins</th><th>Losses</th><th>Draws</th><th>Points</th></tr>';
+    
+    const sortedPlayers = [...tournament.players].sort((a, b) => b.points - a.points || b.wins - a.wins);
+    sortedPlayers.forEach((player, idx) => {
+        html += `<tr>`;
+        html += `<td>${idx + 1}</td>`;
+        html += `<td>${player.name}</td>`;
+        html += `<td>${player.wins}</td>`;
+        html += `<td>${player.losses}</td>`;
+        html += `<td>${player.draws}</td>`;
+        html += `<td>${player.points}</td>`;
+        html += `</tr>`;
+    });
+    
+    html += '</table>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Start the next tournament match
+function startNextTournamentMatch() {
+    if (tournament.stage === 'group') {
+        startNextGroupMatch();
+    } else if (tournament.stage === 'knockout') {
+        startNextKnockoutMatch();
+    }
+}
+
+// Start the next group match
+function startNextGroupMatch() {
+    const group = tournament.groups[tournament.currentGroupIndex];
+    
+    // Check if current group is completed
+    const completedMatches = group.matches.filter(m => m.completed).length;
+    if (completedMatches >= group.matches.length) {
+        // Move to next group or knockout stage
+        tournament.currentGroupIndex++;
+        
+        if (tournament.currentGroupIndex >= tournament.groups.length) {
+            // All groups completed, move to knockout
+            advanceToKnockoutStage();
+            return;
+        }
+        
+        tournament.currentGroupMatch = 0;
+    }
+    
+    // Get current match
+    const currentMatch = group.matches[tournament.currentGroupMatch];
+    if (!currentMatch) {
+        alert('No more matches in this group!');
+        return;
+    }
+    
+    // Set up the match
+    const player1 = group.players.find(p => p.id === currentMatch.player1);
+    const player2 = group.players.find(p => p.id === currentMatch.player2);
+    
+    tournament.currentMatchPlayers = [player1, player2];
+    
+    // Set up the game
+    gameMode = 'pvp';
+    currentPlayer = 'X';
+    gameOver = false;
+    
+    // Reset boards
+    resetGame();
+    
+    // Update UI
+    document.getElementById('turn-indicator').textContent = `${player1.name}'s Turn`;
+    document.getElementById('game-status').textContent = `Group Stage: ${player1.name} vs ${player2.name}`;
+    
+    // Show standard board
+    document.getElementById('standard-board').style.display = 'grid';
+    document.getElementById('ultimate-board').style.display = 'none';
+    
+    // Update tournament display
+    displayTournament();
+}
+
+// Advance to knockout stage
+function advanceToKnockoutStage() {
+    // Get top 2 from each group
+    const advancingPlayers = [];
+    
+    for (let g = 0; g < tournament.groups.length; g++) {
+        const groupResults = tournament.groupResults[g] || [];
+        const sorted = [...groupResults].sort((a, b) => b.points - a.points);
+        const top2 = sorted.slice(0, 2);
+        advancingPlayers.push(...top2);
+    }
+    
+    // Create knockout bracket
+    tournament.knockoutBracket = [];
+    tournament.stage = 'knockout';
+    tournament.currentKnockoutRound = 0;
+    tournament.currentKnockoutMatch = 0;
+    
+    // Single elimination bracket
+    let currentRoundPlayers = [...advancingPlayers];
+    
+    while (currentRoundPlayers.length > 1) {
+        const roundMatches = [];
+        
+        for (let i = 0; i < currentRoundPlayers.length; i += 2) {
+            if (i + 1 < currentRoundPlayers.length) {
+                roundMatches.push({
+                    player1: currentRoundPlayers[i],
+                    player2: currentRoundPlayers[i + 1],
+                    winner: null,
+                    completed: false
+                });
+            }
+        }
+        
+        tournament.knockoutBracket.push(roundMatches);
+        currentRoundPlayers = roundMatches.map(m => null); // Will be filled with winners
+    }
+    
+    // Start first knockout match
+    startNextKnockoutMatch();
+}
+
+// Start the next knockout match
+function startNextKnockoutMatch() {
+    // Check if tournament is completed
+    if (tournament.currentKnockoutRound >= tournament.knockoutBracket.length) {
+        tournament.stage = 'finished';
+        displayTournament();
+        return;
+    }
+    
+    const roundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound];
+    const currentMatch = roundMatches[tournament.currentKnockoutMatch];
+    
+    if (!currentMatch) {
+        // Move to next round
+        tournament.currentKnockoutRound++;
+        tournament.currentKnockoutMatch = 0;
+        startNextKnockoutMatch();
+        return;
+    }
+    
+    // Set up the match
+    const player1Name = currentMatch.player1 ? (typeof currentMatch.player1 === 'object' ? currentMatch.player1.name : currentMatch.player1) : null;
+    const player2Name = currentMatch.player2 ? (typeof currentMatch.player2 === 'object' ? currentMatch.player2.name : currentMatch.player2) : null;
+    
+    if (!player1Name || !player2Name) {
+        alert('Match players not set!');
+        return;
+    }
+    
+    const player1 = tournament.players.find(p => p.name === player1Name);
+    const player2 = tournament.players.find(p => p.name === player2Name);
+    
+    tournament.currentMatchPlayers = [player1, player2];
+    
+    // Set up the game
+    gameMode = 'pvp';
+    currentPlayer = 'X';
+    gameOver = false;
+    
+    // Reset boards
+    resetGame();
+    
+    // Update UI
+    document.getElementById('turn-indicator').textContent = `${player1Name}'s Turn`;
+    document.getElementById('game-status').textContent = `Knockout: ${player1Name} vs ${player2Name}`;
+    
+    // Show standard board
+    document.getElementById('standard-board').style.display = 'grid';
+    document.getElementById('ultimate-board').style.display = 'none';
+    
+    // Update tournament display
+    displayTournament();
+}
+
+// End the tournament
+function endTournament() {
+    tournament = {
+        active: false,
+        size: 32,
+        type: 'group_knockout',
+        stage: 'setup',
+        players: [],
+        groups: [],
+        groupResults: {},
+        knockoutBracket: [],
+        currentGroupIndex: 0,
+        currentGroupMatch: 0,
+        currentKnockoutRound: 0,
+        currentKnockoutMatch: 0,
+        matchHistory: [],
+        currentMatchPlayers: null
+    };
+    
+    document.getElementById('tournament-display').style.display = 'none';
+    document.getElementById('tournament-settings').style.display = 'none';
+    document.getElementById('standard-board').style.display = 'grid';
+    
+    // Reset to default mode
+    gameMode = 'pvp';
+    document.getElementById('game-mode').value = 'pvp';
+    toggleGameMode();
+}
+
+// Record tournament match result
+function recordTournamentMatchResult(winnerSymbol) {
+    if (!tournament.active || !tournament.currentMatchPlayers) return;
+    
+    const [player1, player2] = tournament.currentMatchPlayers;
+    
+    // Determine winner
+    let matchWinner = null;
+    if (winnerSymbol === 'X') {
+        matchWinner = player1.id;
+    } else if (winnerSymbol === 'O') {
+        matchWinner = player2.id;
+    } // Draw remains null
+    
+    // Update match result
+    if (tournament.stage === 'group') {
+        const group = tournament.groups[tournament.currentGroupIndex];
+        const currentMatch = group.matches[tournament.currentGroupMatch];
+        
+        currentMatch.winner = matchWinner;
+        currentMatch.completed = true;
+        
+        // Update group results
+        if (!tournament.groupResults[tournament.currentGroupIndex]) {
+            tournament.groupResults[tournament.currentGroupIndex] = [];
+        }
+        
+        // Initialize or update player results in this group
+        const groupResults = tournament.groupResults[tournament.currentGroupIndex];
+        
+        // Find or create result entries
+        let result1 = groupResults.find(r => r.id === player1.id);
+        let result2 = groupResults.find(r => r.id === player2.id);
+        
+        if (!result1) {
+            result1 = { id: player1.id, name: player1.name, wins: 0, losses: 0, draws: 0, points: 0 };
+            groupResults.push(result1);
+        }
+        if (!result2) {
+            result2 = { id: player2.id, name: player2.name, wins: 0, losses: 0, draws: 0, points: 0 };
+            groupResults.push(result2);
+        }
+        
+        // Update results
+        if (matchWinner === player1.id) {
+            result1.wins++;
+            result2.losses++;
+            result1.points += 3; // 3 points for win
+        } else if (matchWinner === player2.id) {
+            result2.wins++;
+            result1.losses++;
+            result2.points += 3;
+        } else {
+            result1.draws++;
+            result2.draws++;
+            result1.points += 1;
+            result2.points += 1;
+        }
+        
+        // Update overall player stats
+        if (matchWinner === player1.id) {
+            player1.wins++;
+            player2.losses++;
+        } else if (matchWinner === player2.id) {
+            player2.wins++;
+            player1.losses++;
+        } else {
+            player1.draws++;
+            player2.draws++;
+        }
+        
+        // Move to next match
+        tournament.currentGroupMatch++;
+        saveGame(winnerSymbol, winnerSymbol === 'X' ? `${player1.name} wins` : winnerSymbol === 'O' ? `${player2.name} wins` : 'Draw');
+        
+    } else if (tournament.stage === 'knockout') {
+        const roundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound];
+        const currentMatch = roundMatches[tournament.currentKnockoutMatch];
+        
+        currentMatch.winner = matchWinner;
+        currentMatch.completed = true;
+        
+        // Update player stats
+        if (matchWinner === player1.id) {
+            player1.wins++;
+            player2.losses++;
+        } else if (matchWinner === player2.id) {
+            player2.wins++;
+            player1.losses++;
+        } else {
+            player1.draws++;
+            player2.draws++;
+        }
+        
+        // For knockout, winner advances
+        if (matchWinner) {
+            const winnerPlayer = matchWinner === player1.id ? player1 : player2;
+            
+            // Update next round
+            if (tournament.currentKnockoutRound + 1 < tournament.knockoutBracket.length) {
+                const nextRoundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound + 1];
+                const nextMatchIndex = Math.floor(tournament.currentKnockoutMatch / 2);
+                
+                if (nextRoundMatches[nextMatchIndex]) {
+                    if (tournament.currentKnockoutMatch % 2 === 0) {
+                        nextRoundMatches[nextMatchIndex].player1 = winnerPlayer;
+                    } else {
+                        nextRoundMatches[nextMatchIndex].player2 = winnerPlayer;
+                    }
+                }
+            }
+        }
+        
+        // Move to next match
+        tournament.currentKnockoutMatch++;
+        saveGame(winnerSymbol, winnerSymbol === 'X' ? `${player1.name} wins` : winnerSymbol === 'O' ? `${player2.name} wins` : 'Draw');
+    }
+}
+
+// Modified handleCellClick for tournament mode
+function handleCellClick(e) {
+    if (gameMode === 'ai' && currentPlayer === 'O') return;
+    if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') return;
+    
+    // In tournament mode, handle differently
+    if (tournament.active) {
+        const index = parseInt(e.target.getAttribute('data-index'));
+        if (board[index] !== '' || gameOver) return;
+        
+        board[index] = currentPlayer;
+        e.target.textContent = currentPlayer;
+        e.target.classList.add('taken');
+
+        const winner = checkWinner(board);
+        if (winner) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            
+            // Record tournament result
+            recordTournamentMatchResult(winner);
+            
+            // Display winner
+            const [player1, player2] = tournament.currentMatchPlayers;
+            const winnerName = winner === 'X' ? player1.name : player2.name;
+            document.getElementById('game-status').textContent = `${winnerName} wins!`;
+            highlightWinner('standard');
+            
+            // Don't save to history (handled by recordTournamentMatchResult)
+        } else if (checkDraw(board)) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = 'Draw!';
+            
+            // Record tournament result as draw
+            recordTournamentMatchResult(null);
+        } else {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            const [player1, player2] = tournament.currentMatchPlayers;
+            const currentPlayerName = currentPlayer === 'X' ? player1.name : player2.name;
+            document.getElementById('turn-indicator').textContent = `${currentPlayerName}'s Turn`;
+        }
+        return;
+    }
+    
+    // Normal PvP/AI mode
+    const index = parseInt(e.target.getAttribute('data-index'));
+    if (board[index] !== '' || gameOver) return;
+    
+    board[index] = currentPlayer; 
+    e.target.textContent = currentPlayer; 
+    e.target.classList.add('taken');
+
+    const winner = checkWinner(board);
+    if (winner) { 
+        gameOver = true; 
+        document.getElementById('turn-indicator').textContent = ''; 
+        const isAIWinner = (gameMode === 'ai' || gameMode === 'ultimate-ai') && winner === 'O';
+        document.getElementById('game-status').textContent = isAIWinner 
+            ? getAIWinMessage() 
+            : getPlayerWinMessage();
+        highlightWinner('standard'); 
+        saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
+    } else if (checkDraw(board)) { 
+        gameOver = true; 
+        document.getElementById('turn-indicator').textContent = ''; 
+        document.getElementById('game-status').textContent = getRandomMessage('draw'); 
+        saveGame(null, 'draw');
+    } else { 
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; 
+        document.getElementById('turn-indicator').textContent = gameMode === 'ai' 
+            ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking')) 
+            : `Player ${currentPlayer}'s Turn`;
+        
+        if (gameMode === 'ai' && currentPlayer === 'O') { 
+            setTimeout(makeAIMove, 500); 
+        }
+    }
+}
+
+// ── Save a finished game to the server with gameMode and AI learning data ───────────────────────
+async function saveGame(winner, result) {
+    try {
+        const isAIGame = gameMode === 'ai' || gameMode === 'ultimate-ai';
+        
+        // CP10-c2: Include AI learning data for Ultimate mode
+        const learningData = gameMode === 'ultimate-ai' ? {
+            aiPersonality: aiPersonality || 'neutral',
+            aiDifficulty: aiDifficulty || 'medium',
+            moveHistory: aiMoveHistory,
+            outcome: winner === 'O' ? 'ai_win' : winner ? 'player_win' : 'draw'
+        } : null;
+        
+        // Include tournament data if in tournament mode
+        const tournamentData = tournament.active ? {
+            tournament: {
+                size: tournament.size,
+                type: tournament.type,
+                stage: tournament.stage,
+                players: tournament.players.map(p => ({ name: p.name })),
+                currentMatchPlayers: tournament.currentMatchPlayers ? tournament.currentMatchPlayers.map(p => p.name) : null
+            },
+            matchResult: {
+                winner: winner,
+                result: result
+            }
+        } : null;
+        
+        const response = await fetch('/api/games', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                winner,
+                result,
+                board: (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? { largeBoard, smallBoards } : board,
+                gameMode: gameMode,
+                aiDifficulty: isAIGame ? aiDifficulty : null,
+                aiPersonality: isAIGame ? aiPersonality : null,
+                learningData: learningData,
+                tournamentData: tournamentData,
+                playedAt: new Date().toISOString()
+            })
+        });
+        
+        if (response.ok) { 
+            loadHistory(); 
+            // CP10-c2: Load updated learning data after saving
+            if (isAIGame && (gameMode === 'ai' || gameMode === 'ultimate-ai')) {
+                loadAILearningData();
+            }
+            setTimeout(() => refreshAllStats(), 300); 
+        } else { 
+            console.warn('Game not saved (not logged in?)'); 
+        }
+        
+        // CP10-c2: Reset move history after saving
+        aiMoveHistory = [];
+    } catch (err) { 
+        console.error('Error saving game:', err); 
+    }
+}
+
+// CP10-c2: Load AI learning data from server
+async function loadAILearningData() {
+    if (!aiPersonality) return;
+    
+    try {
+        const response = await fetch(`/api/ai-learning?personality=${aiPersonality}&difficulty=${aiDifficulty || 'medium'}`, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            aiLearningData[aiPersonality] = data.learningData || {};
         } else {
             console.warn('Could not load AI learning data');
         }
@@ -629,7 +1422,8 @@ async function loadHistory() {
                 'pvp': 'Player vs Player',
                 'ai': 'Player vs AI',
                 'ultimate': 'Ultimate Tic Tac Toe (PvP)',
-                'ultimate-ai': 'Ultimate Tic Tac Toe (vs AI)'
+                'ultimate-ai': 'Ultimate Tic Tac Toe (vs AI)',
+                'tournament': 'Tournament'
             }[game.gameMode] || game.gameMode;
             
             let gameDisplay = (game.gameMode === 'ultimate' || game.gameMode === 'ultimate-ai') 
@@ -639,8 +1433,12 @@ async function loadHistory() {
             const difficultyInfo = game.aiDifficulty 
                 ? `<div class="game-meta">Mode: ${gameModeDisplay}<br>Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>`
                 : `<div class="game-meta">Mode: ${gameModeDisplay}</div>`;
+            
+            // Add tournament info if present
+            const tournamentInfo = game.tournamentData ? 
+                `<div class="game-meta">Tournament: ${game.tournamentData.tournament?.size} players, ${game.tournamentData.tournament?.type}</div>` : '';
 
-            return `<div class="history-card"><div class="history-meta"><span class="history-result">${resultText}</span><span class="history-date">${date}</span></div>${difficultyInfo}${gameDisplay}</div>`;
+            return `<div class="history-card"><div class="history-meta"><span class="history-result">${resultText}</span><span class="history-date">${date}</span></div>${difficultyInfo}${tournamentInfo}${gameDisplay}</div>`;
         }).join('');
     } catch (err) { 
         historyList.innerHTML = '<p>Could not load history.</p>'; 
@@ -656,14 +1454,19 @@ async function loadStats() {
             return; 
         }
         const data = await response.json();
-        const byDifficulty = data.byDifficulty || {};
+        const byMode = data.byMode || {};
         const global = data.global || { wins: 0, losses: 0, draws: 0 };
+        
+        // Update by difficulty stats (for backward compatibility)
+        const byDifficulty = {};
         ['easy', 'medium', 'hard'].forEach(difficulty => {
-            const difficultyStats = byDifficulty[difficulty] || { wins: 0, losses: 0, draws: 0 };
-            document.getElementById(`${difficulty}-wins`).textContent = difficultyStats.wins;
-            document.getElementById(`${difficulty}-losses`).textContent = difficultyStats.losses;
-            document.getElementById(`${difficulty}-draws`).textContent = difficultyStats.draws;
+            const diffStats = byMode[difficulty] || { wins: 0, losses: 0, draws: 0 };
+            byDifficulty[difficulty] = diffStats;
+            document.getElementById(`${difficulty}-wins`).textContent = diffStats.wins;
+            document.getElementById(`${difficulty}-losses`).textContent = diffStats.losses;
+            document.getElementById(`${difficulty}-draws`).textContent = diffStats.draws;
         });
+
         document.getElementById('global-wins').textContent = global.wins;
         document.getElementById('global-losses').textContent = global.losses;
         document.getElementById('global-draws').textContent = global.draws;
@@ -731,7 +1534,8 @@ async function loadLeaderboardByMode() {
             'pvp': 'PvP',
             'ai': 'vs AI',
             'ultimate': 'Ultimate PvP',
-            'ultimate-ai': 'Ultimate vs AI'
+            'ultimate-ai': 'Ultimate vs AI',
+            'tournament': 'Tournament'
         };
         leaderboardBody.innerHTML = leaderboard.map((entry, index) => {
             const modeDisplay = gameModeNames[entry.gameMode] || entry.gameMode;
@@ -829,6 +1633,7 @@ async function clearHistory() {
     }
 }
 
+// Modified toggleGameMode to handle tournament
 function toggleGameMode() {
     const modeSelect = document.getElementById('game-mode');
     gameMode = modeSelect.value;
@@ -836,6 +1641,14 @@ function toggleGameMode() {
     const personalitySection = document.getElementById('personality-section');
     const standardBoard = document.getElementById('standard-board');
     const ultimateBoard = document.getElementById('ultimate-board');
+    const tournamentSettings = document.getElementById('tournament-settings');
+    const tournamentDisplay = document.getElementById('tournament-display');
+    
+    // Hide all special sections first
+    difficultySection.style.display = 'none';
+    personalitySection.style.display = 'none';
+    tournamentSettings.style.display = 'none';
+    tournamentDisplay.style.display = 'none';
     
     if (gameMode === 'ai') {
         difficultySection.style.display = 'flex';
@@ -864,9 +1677,33 @@ function toggleGameMode() {
         }
         standardBoard.style.display = 'none';
         ultimateBoard.style.display = 'block';
+    } else if (gameMode === 'tournament') {
+        tournamentSettings.style.display = 'block';
+        standardBoard.style.display = 'none';
+        ultimateBoard.style.display = 'none';
+        tournamentDisplay.style.display = 'none';
+        
+        // Initialize tournament UI
+        updateTournamentUI();
+        
+        // Reset tournament state
+        tournament = {
+            active: false,
+            size: 32,
+            type: 'group_knockout',
+            stage: 'setup',
+            players: [],
+            groups: [],
+            groupResults: {},
+            knockoutBracket: [],
+            currentGroupIndex: 0,
+            currentGroupMatch: 0,
+            currentKnockoutRound: 0,
+            currentKnockoutMatch: 0,
+            matchHistory: [],
+            currentMatchPlayers: null
+        };
     } else {
-        difficultySection.style.display = 'none';
-        personalitySection.style.display = 'none';
         standardBoard.style.display = 'grid';
         ultimateBoard.style.display = 'none';
         aiDifficulty = null; 
@@ -884,43 +1721,6 @@ function setAIPersonality() {
     // CP10-c2: Load learning data when personality changes
     if (gameMode === 'ai' || gameMode === 'ultimate-ai') {
         loadAILearningData();
-    }
-}
-
-function handleCellClick(e) {
-    if (gameMode === 'ai' && currentPlayer === 'O') return;
-    if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') return;
-    const index = parseInt(e.target.getAttribute('data-index'));
-    if (board[index] !== '' || gameOver) return;
-    
-    board[index] = currentPlayer; 
-    e.target.textContent = currentPlayer; 
-    e.target.classList.add('taken');
-
-    const winner = checkWinner(board);
-    if (winner) { 
-        gameOver = true; 
-        document.getElementById('turn-indicator').textContent = ''; 
-        const isAIWinner = (gameMode === 'ai' || gameMode === 'ultimate-ai') && winner === 'O';
-        document.getElementById('game-status').textContent = isAIWinner 
-            ? getAIWinMessage() 
-            : getPlayerWinMessage();
-        highlightWinner('standard'); 
-        saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
-    } else if (checkDraw(board)) { 
-        gameOver = true; 
-        document.getElementById('turn-indicator').textContent = ''; 
-        document.getElementById('game-status').textContent = getRandomMessage('draw'); 
-        saveGame(null, 'draw');
-    } else { 
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; 
-        document.getElementById('turn-indicator').textContent = gameMode === 'ai' 
-            ? (currentPlayer === 'X' ? getRandomMessage('turn') : getRandomMessage('thinking')) 
-            : `Player ${currentPlayer}'s Turn`;
-        
-        if (gameMode === 'ai' && currentPlayer === 'O') { 
-            setTimeout(makeAIMove, 500); 
-        }
     }
 }
 
@@ -1022,6 +1822,24 @@ async function logout() {
         neutral: null,
         mathematician: null,
         psychologist: null
+    };
+    
+    // Reset tournament
+    tournament = {
+        active: false,
+        size: 32,
+        type: 'group_knockout',
+        stage: 'setup',
+        players: [],
+        groups: [],
+        groupResults: {},
+        knockoutBracket: [],
+        currentGroupIndex: 0,
+        currentGroupMatch: 0,
+        currentKnockoutRound: 0,
+        currentKnockoutMatch: 0,
+        matchHistory: [],
+        currentMatchPlayers: null
     };
 }
 

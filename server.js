@@ -20,6 +20,7 @@ const usersFilePath = path.join(__dirname, 'data', 'users.json');
 const gamesFilePath = path.join(__dirname, 'data', 'games.json');
 const statsFilePath = path.join(__dirname, 'data', 'stats.json');
 const aiStatsFilePath = path.join(__dirname, 'data', 'ai-stats.json');
+const aiLearningFilePath = path.join(__dirname, 'data', 'ai-learning.json');
 
 // Initialize JSON files if they don't exist
 const initDataFiles = () => {
@@ -29,6 +30,7 @@ const initDataFiles = () => {
     if (!fs.existsSync(gamesFilePath)) fs.writeFileSync(gamesFilePath, '[]');
     if (!fs.existsSync(statsFilePath)) fs.writeFileSync(statsFilePath, '{}');
     if (!fs.existsSync(aiStatsFilePath)) fs.writeFileSync(aiStatsFilePath, '{}');
+    if (!fs.existsSync(aiLearningFilePath)) fs.writeFileSync(aiLearningFilePath, '{}');
 };
 initDataFiles();
 
@@ -76,6 +78,52 @@ function saveAIStats(stats) {
     fs.writeFileSync(aiStatsFilePath, JSON.stringify(stats, null, 2));
 }
 
+// CP10-c2: AI Learning Data
+function getAILearning() {
+    if (!fs.existsSync(aiLearningFilePath)) return {};
+    return JSON.parse(fs.readFileSync(aiLearningFilePath, 'utf8'));
+}
+
+function saveAILearning(learning) {
+    const dataDir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir);
+    fs.writeFileSync(aiLearningFilePath, JSON.stringify(learning, null, 2));
+}
+
+// Default pattern weights for each personality
+const DEFAULT_PATTERN_WEIGHTS = {
+    neutral: {
+        winSmallBoard: 1000,
+        blockSmallBoard: 1000,
+        winLargeBoard: 10000,
+        blockLargeBoard: 10000,
+        centerSmall: 10,
+        cornerSmall: 5,
+        centerLarge: 10,
+        cornerLarge: 5
+    },
+    mathematician: {
+        winSmallBoard: 1500,
+        blockSmallBoard: 800,
+        winLargeBoard: 10000,
+        blockLargeBoard: 10000,
+        centerSmall: 30,
+        cornerSmall: 15,
+        centerLarge: 30,
+        cornerLarge: 15
+    },
+    psychologist: {
+        winSmallBoard: 800,
+        blockSmallBoard: 1500,
+        winLargeBoard: 10000,
+        blockLargeBoard: 10000,
+        centerSmall: 5,
+        cornerSmall: 3,
+        centerLarge: 5,
+        cornerLarge: 3
+    }
+};
+
 // --- AUTH ROUTES ---
 
 app.get('/api/me', (req, res) => {
@@ -120,13 +168,13 @@ app.post('/api/logout', (req, res) => {
 
 // --- GAME ROUTES ---
 
-// Save a finished game
+// Save a finished game with AI learning data
 app.post('/api/games', (req, res) => {
     if (!req.session.username) {
         return res.status(401).json({ error: 'Must be logged in to save a game.' });
     }
 
-    const { winner, result, board, aiDifficulty, aiPersonality } = req.body;
+    const { winner, result, board, gameMode, aiDifficulty, aiPersonality, learningData } = req.body;
 
     if (!result || !board) {
         return res.status(400).json({ error: 'Missing required game data.' });
@@ -134,46 +182,64 @@ app.post('/api/games', (req, res) => {
 
     const games = getGames();
 
-    // Always include aiDifficulty and aiPersonality in the saved game
     const newGame = {
         id: Date.now(),
         playedBy: req.session.username,
         winner: winner || null,
         result: result,
         board: board,
-        aiDifficulty: aiDifficulty || null,  // Explicitly set to null if not provided
-        aiPersonality: aiPersonality || 'neutral',  // Default to 'neutral' if not provided
+        gameMode: gameMode || 'pvp',
+        aiDifficulty: aiDifficulty || null,
+        aiPersonality: aiPersonality || 'neutral',
         playedAt: new Date().toISOString()
     };
 
     games.push(newGame);
     saveGames(games);
 
-    // Update player stats if it's an AI game (aiDifficulty is not null)
-    if (aiDifficulty !== null) {
-        const stats = getStats();
-        if (!stats[req.session.username]) {
-            stats[req.session.username] = {};
-        }
-        if (!stats[req.session.username][aiDifficulty]) {
-            stats[req.session.username][aiDifficulty] = { wins: 0, losses: 0, draws: 0 };
-        }
+    // Update player stats
+    const stats = getStats();
+    if (!stats[req.session.username]) {
+        stats[req.session.username] = {};
+    }
 
-        if (winner === 'O') {
-            stats[req.session.username][aiDifficulty].losses++;
-        } else if (winner === 'X') {
-            stats[req.session.username][aiDifficulty].wins++;
-        } else if (result === 'draw') {
-            stats[req.session.username][aiDifficulty].draws++;
+    // Initialize stats for all game modes
+    const allModes = ['pvp', 'ai', 'ultimate', 'ultimate-ai'];
+    allModes.forEach(mode => {
+        if (!stats[req.session.username][mode]) {
+            stats[req.session.username][mode] = { wins: 0, losses: 0, draws: 0 };
         }
+    });
 
-        saveStats(stats);
+    // Update stats based on game mode
+    const mode = gameMode || 'pvp';
+    if (!stats[req.session.username][mode]) {
+        stats[req.session.username][mode] = { wins: 0, losses: 0, draws: 0 };
+    }
 
-        // Update AI stats
+    if (winner === 'X') {
+        stats[req.session.username][mode].wins++;
+    } else if (winner === 'O') {
+        stats[req.session.username][mode].losses++;
+    } else if (result === 'draw') {
+        stats[req.session.username][mode].draws++;
+    }
+
+    saveStats(stats);
+
+    // Update AI stats for AI modes
+    const isAIGame = (gameMode === 'ai' || gameMode === 'ultimate-ai');
+    if (isAIGame && aiDifficulty) {
         const aiStats = getAIStats();
-        const aiKey = `${aiDifficulty}-${aiPersonality}`;
+        const aiKey = `${aiDifficulty}-${aiPersonality || 'neutral'}`;
         if (!aiStats[aiKey]) {
-            aiStats[aiKey] = { wins: 0, losses: 0, draws: 0, difficulty: aiDifficulty, personality: aiPersonality };
+            aiStats[aiKey] = { 
+                wins: 0, 
+                losses: 0, 
+                draws: 0, 
+                difficulty: aiDifficulty, 
+                personality: aiPersonality || 'neutral' 
+            };
         }
 
         if (winner === 'O') {
@@ -187,7 +253,106 @@ app.post('/api/games', (req, res) => {
         saveAIStats(aiStats);
     }
 
+    // CP10-c2: Process AI learning data for Ultimate AI mode
+    if (isAIGame && gameMode === 'ultimate-ai' && learningData) {
+        processAILearning(learningData, req.session.username);
+    }
+
     res.status(201).json({ message: 'Game saved!', game: newGame });
+});
+
+// CP10-c2: Process AI learning data from a game
+function processAILearning(learningData, username) {
+    const { aiPersonality, moveHistory, outcome } = learningData;
+    
+    if (!aiPersonality || !moveHistory || !moveHistory.length || !outcome) {
+        return; // No valid learning data
+    }
+
+    const learning = getAILearning();
+    const key = `${username}-${aiPersonality}`;
+    
+    // Initialize learning data for this user/personality
+    if (!learning[key]) {
+        learning[key] = {
+            user: username,
+            personality: aiPersonality,
+            patternWeights: { ...DEFAULT_PATTERN_WEIGHTS[aiPersonality] },
+            gamesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            draws: 0
+        };
+    }
+
+    // Update game counts
+    learning[key].gamesPlayed++;
+    if (outcome === 'ai_win') learning[key].wins++;
+    else if (outcome === 'player_win') learning[key].losses++;
+    else if (outcome === 'draw') learning[key].draws++;
+
+    // CP10-c2: Adjust weights based on outcome
+    const weights = learning[key].patternWeights;
+    
+    // Analyze move history to identify patterns
+    const successfulMoves = [];
+    const failedMoves = [];
+    
+    // For simplicity, we'll adjust weights based on overall outcome
+    // In a more advanced implementation, we'd analyze each move's impact
+    
+    if (outcome === 'ai_win') {
+        // AI won - reinforce winning strategies
+        weights.winSmallBoard = Math.round(weights.winSmallBoard * 1.05);
+        weights.winLargeBoard = Math.round(weights.winLargeBoard * 1.02);
+        weights.centerSmall = Math.round(weights.centerSmall * 1.03);
+        weights.centerLarge = Math.round(weights.centerLarge * 1.03);
+    } else if (outcome === 'player_win') {
+        // AI lost - increase blocking and defensive weights
+        weights.blockSmallBoard = Math.round(weights.blockSmallBoard * 1.10);
+        weights.blockLargeBoard = Math.round(weights.blockLargeBoard * 1.10);
+        // Slightly reduce offensive weights
+        weights.winSmallBoard = Math.round(weights.winSmallBoard * 0.98);
+    } else if (outcome === 'draw') {
+        // Draw - slightly increase both offensive and defensive
+        weights.winSmallBoard = Math.round(weights.winSmallBoard * 1.02);
+        weights.blockSmallBoard = Math.round(weights.blockSmallBoard * 1.02);
+    }
+
+    // Save updated learning data
+    saveAILearning(learning);
+}
+
+// CP10-c2: Get AI learning data for a specific personality
+app.get('/api/ai-learning', (req, res) => {
+    const { personality, difficulty } = req.query;
+    
+    if (!req.session.username) {
+        return res.status(401).json({ error: 'Must be logged in to access learning data.' });
+    }
+
+    const learning = getAILearning();
+    const key = `${req.session.username}-${personality || 'neutral'}`;
+    
+    if (learning[key]) {
+        res.json({ 
+            learningData: learning[key].patternWeights,
+            gamesPlayed: learning[key].gamesPlayed,
+            wins: learning[key].wins,
+            losses: learning[key].losses,
+            draws: learning[key].draws
+        });
+    } else {
+        // Return default weights if no learning data exists
+        const defaultPersonality = personality || 'neutral';
+        res.json({ 
+            learningData: DEFAULT_PATTERN_WEIGHTS[defaultPersonality] || DEFAULT_PATTERN_WEIGHTS.neutral,
+            gamesPlayed: 0,
+            wins: 0,
+            losses: 0,
+            draws: 0
+        });
+    }
 });
 
 // Get game history for the logged-in user
@@ -217,7 +382,7 @@ app.delete('/api/games', (req, res) => {
     res.json({ message: 'History cleared!' });
 });
 
-// Get stats for the logged-in user, separated by difficulty
+// Get stats for the logged-in user, separated by game mode
 app.get('/api/stats', (req, res) => {
     if (!req.session.username) {
         return res.status(401).json({ error: 'Must be logged in to view stats.' });
@@ -226,28 +391,28 @@ app.get('/api/stats', (req, res) => {
     const stats = getStats();
     const userStats = stats[req.session.username] || {};
 
-    // Ensure all difficulties are present, even if no games played yet
-    const allDifficulties = ['easy', 'medium', 'hard'];
-    allDifficulties.forEach(difficulty => {
-        if (!userStats[difficulty]) {
-            userStats[difficulty] = { wins: 0, losses: 0, draws: 0 };
+    // Ensure all game modes are present
+    const allModes = ['pvp', 'ai', 'ultimate', 'ultimate-ai'];
+    allModes.forEach(mode => {
+        if (!userStats[mode]) {
+            userStats[mode] = { wins: 0, losses: 0, draws: 0 };
         }
     });
 
-    // Calculate global stats (across all difficulties)
+    // Calculate global stats (across all modes)
     const globalStats = {
         wins: 0,
         losses: 0,
         draws: 0
     };
 
-    allDifficulties.forEach(difficulty => {
-        globalStats.wins += userStats[difficulty].wins;
-        globalStats.losses += userStats[difficulty].losses;
-        globalStats.draws += userStats[difficulty].draws;
+    allModes.forEach(mode => {
+        globalStats.wins += userStats[mode].wins;
+        globalStats.losses += userStats[mode].losses;
+        globalStats.draws += userStats[mode].draws;
     });
 
-    res.json({ byDifficulty: userStats, global: globalStats });
+    res.json({ byMode: userStats, global: globalStats });
 });
 
 // Get AI stats (global stats for all AI configurations)
@@ -307,21 +472,52 @@ app.get('/api/ai-leaderboard', (req, res) => {
     res.json(leaderboard.slice(0, 10));
 });
 
+// Get player leaderboard separated by game mode
+app.get('/api/leaderboard/by-mode', (req, res) => {
+    const stats = getStats();
+    const leaderboard = [];
+
+    // Calculate stats for each user in each game mode
+    for (const [username, userStats] of Object.entries(stats)) {
+        for (const [mode, modeStats] of Object.entries(userStats)) {
+            const totalWins = modeStats.wins || 0;
+            const totalGames = (modeStats.wins || 0) + (modeStats.losses || 0) + (modeStats.draws || 0);
+            const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+
+            if (totalGames > 0) {
+                leaderboard.push({
+                    username,
+                    gameMode: mode,
+                    totalWins,
+                    totalGames,
+                    winRate
+                });
+            }
+        }
+    }
+
+    // Sort by win rate (descending), then by total wins
+    leaderboard.sort((a, b) => b.winRate - a.winRate || b.totalWins - a.totalWins);
+
+    // Return top 10
+    res.json(leaderboard.slice(0, 10));
+});
+
 // Get global leaderboard (top players by total wins)
 app.get('/api/leaderboard', (req, res) => {
     const stats = getStats();
     const leaderboard = [];
 
-    // Calculate total wins for each user across all difficulties
+    // Calculate total wins for each user across all modes
     for (const [username, userStats] of Object.entries(stats)) {
-        const totalWins = ['easy', 'medium', 'hard'].reduce((sum, difficulty) => {
-            return sum + (userStats[difficulty]?.wins || 0);
+        const totalWins = Object.values(userStats).reduce((sum, modeStats) => {
+            return sum + (modeStats?.wins || 0);
         }, 0);
 
-        const totalGames = ['easy', 'medium', 'hard'].reduce((sum, difficulty) => {
-            return sum + (userStats[difficulty]?.wins || 0) + 
-                          (userStats[difficulty]?.losses || 0) + 
-                          (userStats[difficulty]?.draws || 0);
+        const totalGames = Object.values(userStats).reduce((sum, modeStats) => {
+            return sum + (modeStats?.wins || 0) + 
+                          (modeStats?.losses || 0) + 
+                          (modeStats?.draws || 0);
         }, 0);
 
         if (totalGames > 0) {
@@ -338,6 +534,39 @@ app.get('/api/leaderboard', (req, res) => {
     leaderboard.sort((a, b) => b.totalWins - a.totalWins || b.winRate - a.winRate);
 
     // Return top 10 players
+    res.json(leaderboard.slice(0, 10));
+});
+
+// Get AI leaderboard separated by game mode
+app.get('/api/ai-leaderboard/by-mode', (req, res) => {
+    const aiStats = getAIStats();
+    const leaderboard = [];
+
+    // Calculate stats for each AI config in each game mode
+    for (const [key, stats] of Object.entries(aiStats)) {
+        // Extract mode from key (format: difficulty-personality)
+        // For now, we'll treat all as standard AI since we don't have mode in the key
+        const gameMode = 'ai'; // Default, can be enhanced later
+        const totalWins = stats.wins || 0;
+        const totalGames = (stats.wins || 0) + (stats.losses || 0) + (stats.draws || 0);
+        const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+
+        if (totalGames > 0) {
+            leaderboard.push({
+                difficulty: stats.difficulty || 'unknown',
+                personality: stats.personality || 'neutral',
+                gameMode: gameMode,
+                totalWins,
+                totalGames,
+                winRate
+            });
+        }
+    }
+
+    // Sort by win rate (descending), then by total wins
+    leaderboard.sort((a, b) => b.winRate - a.winRate || b.totalWins - a.totalWins);
+
+    // Return top 10
     res.json(leaderboard.slice(0, 10));
 });
 

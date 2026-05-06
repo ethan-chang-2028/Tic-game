@@ -19,6 +19,9 @@ let aiLearningData = {
 };
 let aiMoveHistory = [];
 
+// Available AI personalities for tournaments
+const TOURNAMENT_AI_PERSONALITIES = ['neutral', 'mathematician', 'psychologist'];
+
 // ── Tournament State ───────────────────────────────────────
 let tournament = {
     active: false,
@@ -26,7 +29,7 @@ let tournament = {
     type: 'group_knockout',
     gameType: 'standard', // 'standard' or 'ultimate'
     aiDifficulty: 'medium', // Only easy or medium for tournaments
-    aiPersonalities: ['neutral', 'mathematician', 'psychologist'], // All personalities available
+    allAI: true, // Default to all AI
     stage: 'setup',
     players: [],
     groups: [],
@@ -38,11 +41,8 @@ let tournament = {
     currentKnockoutMatch: 0,
     matchHistory: [],
     currentMatchPlayers: null,
-    currentMatchAIPlayer: null // For tracking which player is AI in current match
+    currentMatchAIPlayer: null
 };
-
-// Available AI personalities for tournaments
-const TOURNAMENT_AI_PERSONALITIES = ['neutral', 'mathematician', 'psychologist'];
 
 const WIN_COMBOS = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
@@ -146,6 +146,9 @@ const personalities = {
 function getEffectivePersonality() {
     if (gameMode === 'ai' || gameMode === 'ultimate-ai') {
         return aiPersonality || 'neutral';
+    }
+    if (tournament.active && tournament.currentMatchAIPlayer) {
+        return tournament.currentMatchAIPlayer.personality || 'neutral';
     }
     return 'neutral';
 }
@@ -278,21 +281,7 @@ function getAIMove(board) {
 function makeAIMove() {
     if (gameOver) return;
     
-    // Use tournament AI personality if in tournament mode
-    const effectivePersonality = tournament.active && tournament.currentMatchAIPlayer 
-        ? tournament.currentMatchAIPlayer.personality 
-        : aiPersonality;
-    
-    // Temporarily set AI personality for this move
-    const originalPersonality = aiPersonality;
-    if (tournament.active && tournament.currentMatchAIPlayer) {
-        aiPersonality = tournament.currentMatchAIPlayer.personality;
-    }
-    
     const aiMove = getAIMove(board);
-    
-    // Restore original personality
-    aiPersonality = originalPersonality;
     
     if (aiMove !== null) {
         board[aiMove] = 'O';
@@ -456,52 +445,14 @@ function getUltimateAIMove() {
     return bestMove;
 }
 
-// CP10-c2: Record AI move for learning
-function recordAIMove(largeIndex, smallIndex, score, boardSnapshot) {
-    if (gameMode !== 'ultimate-ai') return;
-    
-    aiMoveHistory.push({
-        largeIndex,
-        smallIndex,
-        score,
-        boardSnapshot: {
-            largeBoard: [...largeBoard],
-            smallBoards: smallBoards.map(arr => [...arr])
-        },
-        timestamp: Date.now()
-    });
-}
-
 // Modified makeUltimateAIMove for tournament support
 function makeUltimateAIMove() {
     if (ultimateGameOver) return;
     
-    // Use tournament AI personality if in tournament mode
-    const effectivePersonality = tournament.active && tournament.currentMatchAIPlayer 
-        ? tournament.currentMatchAIPlayer.personality 
-        : aiPersonality;
-    
-    // Temporarily set AI personality for this move
-    const originalPersonality = aiPersonality;
-    if (tournament.active && tournament.currentMatchAIPlayer) {
-        aiPersonality = tournament.currentMatchAIPlayer.personality;
-    }
-    
     const aiMove = getUltimateAIMove();
-    
-    // Restore original personality
-    aiPersonality = originalPersonality;
     
     if (aiMove) {
         const { largeIndex, smallIndex } = aiMove;
-        
-        // Record the move for learning
-        const boardSnapshot = {
-            largeBoard: [...largeBoard],
-            smallBoards: smallBoards.map(arr => [...arr])
-        };
-        const score = evaluateUltimateMove(largeIndex, smallIndex, true);
-        recordAIMove(largeIndex, smallIndex, score, boardSnapshot);
         
         // Make the move
         smallBoards[largeIndex][smallIndex] = 'O';
@@ -556,6 +507,12 @@ function makeUltimateAIMove() {
 function handleSmallCellClick(e) {
     if ((gameMode !== 'ultimate' && gameMode !== 'ultimate-ai') || ultimateGameOver) return;
     if (gameMode === 'ultimate-ai' && currentPlayer === 'O') return;
+    
+    // In tournament mode, block if it's AI's turn
+    if (tournament.active && tournament.currentMatchAIPlayer && currentPlayer === 'O') {
+        return;
+    }
+    
     const largeIndex = parseInt(e.target.getAttribute('data-large-index'));
     const smallIndex = parseInt(e.target.getAttribute('data-small-index'));
     if (isSmallBoardFinished(largeIndex) || smallBoards[largeIndex][smallIndex] !== '') return;
@@ -595,26 +552,21 @@ function handleSmallCellClick(e) {
         document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O' 
             ? getRandomMessage('thinking') 
             : `Player ${currentPlayer}'s Turn (Any Board)`;
-        if (gameMode === 'ultimate-ai' && currentPlayer === 'O') setTimeout(makeUltimateAIMove, 1000);
+        
+        // In tournament mode with ultimate, check if AI should play
+        if (tournament.active && tournament.currentMatchAIPlayer && currentPlayer === 'O') {
+            setTimeout(makeUltimateAIMove, 1000);
+        }
     }
 }
 
 // ========== TOURNAMENT FUNCTIONS ==========
 
-// Update tournament AI options based on selected personalities
-function updateTournamentAIOptions() {
-    const checkboxes = document.querySelectorAll('#tournament-ai-personalities input[type="checkbox"]');
-    tournament.aiPersonalities = [];
-    checkboxes.forEach(cb => {
-        if (cb.checked) {
-            tournament.aiPersonalities.push(cb.value);
-        }
-    });
-    
-    // If no personalities selected, default to all
-    if (tournament.aiPersonalities.length === 0) {
-        tournament.aiPersonalities = [...TOURNAMENT_AI_PERSONALITIES];
-    }
+// Toggle all players to be AI
+function toggleAllAI() {
+    const isAllAI = document.getElementById('all-ai-checkbox').checked;
+    tournament.allAI = isAllAI;
+    updateTournamentUI();
 }
 
 // Update tournament UI based on selected size and game type
@@ -632,15 +584,16 @@ function updateTournamentUI() {
     
     // Add player inputs based on size
     for (let i = 0; i < size; i++) {
+        const playerType = tournament.allAI ? 'ai' : 'human';
         const playerDiv = document.createElement('div');
         playerDiv.className = 'tournament-player-input';
         playerDiv.innerHTML = `
-            <input type="text" placeholder="Player ${i + 1} Name" data-player-index="${i}">
+            <input type="text" placeholder="AI ${i + 1}" data-player-index="${i}" value="AI ${i + 1}">
             <select onchange="updatePlayerType(${i})">
                 <option value="human">Human</option>
-                <option value="ai">AI</option>
+                <option value="ai" ${playerType === 'ai' ? 'selected' : ''}>AI</option>
             </select>
-            <select class="ai-personality-select" style="display: none;" onchange="updateAIPlayer(${i})">
+            <select class="ai-personality-select" ${playerType === 'ai' ? '' : 'style="display: none;"'} onchange="updateTournamentUI()">
                 <option value="neutral">Neutral</option>
                 <option value="mathematician">Mathematician</option>
                 <option value="psychologist">Psychologist</option>
@@ -648,14 +601,6 @@ function updateTournamentUI() {
         `;
         playersContainer.appendChild(playerDiv);
     }
-    
-    // Show/hide AI settings based on game type
-    const aiDifficultySection = document.getElementById('tournament-ai-difficulty-section');
-    const aiPersonalitySection = document.getElementById('tournament-ai-personality-section');
-    
-    // AI settings are always visible for tournament
-    aiDifficultySection.style.display = 'block';
-    aiPersonalitySection.style.display = 'block';
     
     // Show start button
     document.getElementById('start-tournament-btn').style.display = 'inline-block';
@@ -663,43 +608,23 @@ function updateTournamentUI() {
 
 // Update player type selector visibility
 function updatePlayerType(index) {
-    const select = document.querySelectorAll('#tournament-players-container select')[index * 2];
-    const personalitySelect = document.querySelectorAll('#tournament-players-container select')[index * 2 + 1];
+    const typeSelect = document.querySelectorAll('#tournament-players-container select')[index * 2];
+    const personalitySelect = document.querySelectorAll('#tournament-players-container .ai-personality-select')[index];
     
-    if (select.value === 'ai') {
+    if (typeSelect.value === 'ai') {
         personalitySelect.style.display = 'inline-block';
     } else {
         personalitySelect.style.display = 'none';
     }
-}
-
-// Update AI player personality
-function updateAIPlayer(index) {
-    // This will be handled when starting the tournament
-}
-
-// Add a player to the tournament
-function addTournamentPlayer() {
-    const size = parseInt(document.getElementById('tournament-size').value);
-    const playersContainer = document.getElementById('tournament-players-container');
-    const currentCount = playersContainer.querySelectorAll('.tournament-player-input').length;
     
-    if (currentCount < size) {
-        const playerDiv = document.createElement('div');
-        playerDiv.className = 'tournament-player-input';
-        playerDiv.innerHTML = `
-            <input type="text" placeholder="Player ${currentCount + 1} Name" data-player-index="${currentCount}">
-            <select onchange="updatePlayerType(${currentCount})">
-                <option value="human">Human</option>
-                <option value="ai">AI</option>
-            </select>
-            <select class="ai-personality-select" style="display: none;" onchange="updateAIPlayer(${currentCount})">
-                <option value="neutral">Neutral</option>
-                <option value="mathematician">Mathematician</option>
-                <option value="psychologist">Psychologist</option>
-            </select>
-        `;
-        playersContainer.appendChild(playerDiv);
+    // Update the name placeholder if switching to AI
+    const nameInput = document.querySelectorAll('#tournament-players-container input')[index];
+    if (typeSelect.value === 'ai' && nameInput.value.trim() === '') {
+        nameInput.value = `AI ${index + 1}`;
+        nameInput.placeholder = `AI ${index + 1}`;
+    } else if (typeSelect.value === 'human' && nameInput.value.trim() === '') {
+        nameInput.value = `Player ${index + 1}`;
+        nameInput.placeholder = `Player ${index + 1}`;
     }
 }
 
@@ -721,7 +646,7 @@ function startTournament() {
         const typeSelect = typeSelects[i];
         const personalitySelect = personalitySelects[i];
         
-        const name = nameInput.value.trim() || `Player ${i + 1}`;
+        const name = nameInput.value.trim() || (typeSelect.value === 'ai' ? `AI ${i + 1}` : `Player ${i + 1}`);
         const type = typeSelect.value;
         const personality = personalitySelect.value;
         
@@ -748,8 +673,8 @@ function startTournament() {
         size: size,
         type: type,
         gameType: gameType,
-        aiDifficulty: aiDifficulty, // Only easy or medium
-        aiPersonalities: [...TOURNAMENT_AI_PERSONALITIES], // All personalities available
+        aiDifficulty: aiDifficulty,
+        allAI: document.getElementById('all-ai-checkbox').checked,
         stage: 'group',
         players: players,
         groups: [],
@@ -836,12 +761,15 @@ function displayTournament() {
     document.getElementById('tournament-display').style.display = 'block';
     
     // Update stage title
+    const gameTypeText = tournament.gameType === 'ultimate' ? 'Ultimate' : 'Standard';
     if (tournament.stage === 'group') {
-        stageTitle.textContent = `Tournament - Group Stage (Group ${tournament.currentGroupIndex + 1}/${tournament.groups.length}) - ${tournament.gameType === 'ultimate' ? 'Ultimate' : 'Standard'} Mode`;
+        stageTitle.textContent = `Tournament - Group Stage (Group ${tournament.currentGroupIndex + 1}/${tournament.groups.length}) - ${gameTypeText} Mode`;
         nextBtn.style.display = 'inline-block';
         endBtn.style.display = 'none';
     } else if (tournament.stage === 'knockout') {
-        stageTitle.textContent = `Tournament - Knockout Stage (Round ${tournament.currentKnockoutRound + 1}) - ${tournament.gameType === 'ultimate' ? 'Ultimate' : 'Standard'} Mode`;
+        const roundNames = ['Round of ' + (tournament.knockoutBracket[0]?.length * 2 || 16), 'Quarterfinals', 'Semifinals', 'Final'];
+        const roundName = roundNames[tournament.currentKnockoutRound] || `Round ${tournament.currentKnockoutRound + 1}`;
+        stageTitle.textContent = `Tournament - ${roundName} - ${gameTypeText} Mode`;
         nextBtn.style.display = 'inline-block';
         endBtn.style.display = 'none';
     } else {
@@ -866,7 +794,7 @@ function generateGroupStageHTML() {
     const matches = group.matches;
     const currentMatchIndex = tournament.currentGroupMatch;
     
-    let html = '<div class="tournament-groups">';
+    let html = '<div class="group-stage-display">';
     
     // Show all groups summary
     for (let g = 0; g < tournament.groups.length; g++) {
@@ -882,7 +810,9 @@ function generateGroupStageHTML() {
             // Sort by points (descending)
             const sortedResults = [...tournament.groupResults[g]].sort((a, b) => b.points - a.points);
             sortedResults.forEach((result, idx) => {
-                html += `<tr><td>${idx + 1}</td><td>${result.name}</td><td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td></tr>`;
+                const playerObj = gGroup.players.find(p => p.id === result.id);
+                const aiIndicator = playerObj?.type === 'ai' ? ' (AI)' : '';
+                html += `<tr><td>${idx + 1}</td><td>${result.name}${aiIndicator}</td><td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td></tr>`;
             });
             
             html += '</table>';
@@ -907,9 +837,9 @@ function generateGroupStageHTML() {
         
         html += `<tr class="${isCurrent ? 'current-match' : ''}">`;
         html += `<td>${idx + 1}</td>`;
-        html += `<td>${player1.name}${isCurrent ? ' *' : ''} ${player1.type === 'ai' ? '(AI)' : ''}</td>`;
+        html += `<td>${player1.name} ${player1.type === 'ai' ? '(AI)' : ''}${isCurrent ? ' *' : ''}</td>`;
         html += `<td>vs</td>`;
-        html += `<td>${player2.name}${isCurrent ? ' *' : ''} ${player2.type === 'ai' ? '(AI)' : ''}</td>`;
+        html += `<td>${player2.name} ${player2.type === 'ai' ? '(AI)' : ''}${isCurrent ? ' *' : ''}</td>`;
         html += `<td>${resultText}</td>`;
         html += `</tr>`;
     });
@@ -926,31 +856,51 @@ function generateKnockoutStageHTML() {
     const currentRound = tournament.currentKnockoutRound;
     const currentMatch = tournament.currentKnockoutMatch;
     
-    let html = '<div class="knockout-bracket">';
+    let html = '<div class="tournament-container">';
     
     // Display bracket by round
-    for (let round = 0; round < bracket.length; round++) {
+    for (let round = bracket.length - 1; round >= 0; round--) {
         const roundMatches = bracket[round];
-        html += `<div class="knockout-round">`;
-        html += `<h4>Round ${round + 1} ${round === 0 ? '(Round of ' + roundMatches.length * 2 + ')' : ''}</h4>`;
+        const roundNames = ['Final', 'Semifinals', 'Quarterfinals', 'Round of 16', 'Round of 32'];
+        const roundName = roundNames[round] || `Round ${bracket.length - round}`;
+        
+        html += `<div class="bracket-round">`;
+        html += `<h4>${roundName}</h4>`;
         
         for (let matchIdx = 0; matchIdx < roundMatches.length; matchIdx++) {
             const match = roundMatches[matchIdx];
             const isCurrent = round === currentRound && matchIdx === currentMatch;
-            const player1Name = match.player1 ? (typeof match.player1 === 'object' ? match.player1.name : match.player1) : 'TBD';
-            const player2Name = match.player2 ? (typeof match.player2 === 'object' ? match.player2.name : match.player2) : 'TBD';
+            
+            // Get player names
+            let player1Name = 'TBD';
+            let player2Name = 'TBD';
+            let player1Obj = null;
+            let player2Obj = null;
+            
+            if (match.player1) {
+                player1Obj = typeof match.player1 === 'object' ? match.player1 : tournament.players.find(p => p.name === match.player1);
+                player1Name = player1Obj ? player1Obj.name : match.player1;
+            }
+            if (match.player2) {
+                player2Obj = typeof match.player2 === 'object' ? match.player2 : tournament.players.find(p => p.name === match.player2);
+                player2Name = player2Obj ? player2Obj.name : match.player2;
+            }
+            
             const resultText = match.completed ? (match.winner === null ? 'Draw' : (match.winner === match.player1 ? 'W' : 'L')) : '';
+            const isWinner1 = match.completed && match.winner === match.player1;
+            const isWinner2 = match.completed && match.winner === match.player2;
             
-            // Get player objects for AI indicators
-            const player1Obj = tournament.players.find(p => p.name === player1Name);
-            const player2Obj = tournament.players.find(p => p.name === player2Name);
-            
-            html += `<div class="knockout-match ${isCurrent ? 'current-match' : ''}">`;
-            html += `<div class="match-player">${player1Name}${isCurrent ? ' *' : ''} ${player1Obj?.type === 'ai' ? '(AI)' : ''}</div>`;
+            html += `<div class="bracket-match ${isCurrent ? 'current-match' : ''} ${match.completed ? 'completed' : ''}">`;
+            html += `<div class="match-player ${isWinner1 ? 'winner' : ''} ${player1Obj?.type === 'ai' ? 'ai' : ''}">${player1Name}${isCurrent ? ' *' : ''}</div>`;
             html += `<div class="match-vs">vs</div>`;
-            html += `<div class="match-player">${player2Name}${isCurrent ? ' *' : ''} ${player2Obj?.type === 'ai' ? '(AI)' : ''}</div>`;
+            html += `<div class="match-player ${isWinner2 ? 'winner' : ''} ${player2Obj?.type === 'ai' ? 'ai' : ''}">${player2Name}${isCurrent ? ' *' : ''}</div>`;
             html += `<div class="match-result">${resultText}</div>`;
             html += `</div>`;
+            
+            // Add connector between matches (except last in round)
+            if (matchIdx < roundMatches.length - 1) {
+                html += `<div class="bracket-connector"></div>`;
+            }
         }
         
         html += '</div>';
@@ -1053,24 +1003,28 @@ function startNextGroupMatch() {
     currentPlayer = 'X';
     gameOver = false;
     
-    // Update UI
-    if (player1.type === 'ai') {
-        // AI plays as O, human as X
-        currentPlayer = 'X';
-        document.getElementById('turn-indicator').textContent = `${player2.name}'s Turn`;
-        document.getElementById('game-status').textContent = `Group Stage: ${player1.name} (AI) vs ${player2.name}`;
+    // Set up AI if needed
+    tournament.currentMatchAIPlayer = null;
+    if (player1.type === 'ai' && player2.type === 'ai') {
+        // Both are AI - pick one randomly to start
+        tournament.currentMatchAIPlayer = Math.random() < 0.5 ? player1 : player2;
+        currentPlayer = tournament.currentMatchAIPlayer === player1 ? 'O' : 'X';
+    } else if (player1.type === 'ai') {
         tournament.currentMatchAIPlayer = player1;
-    } else if (player2.type === 'ai') {
-        // AI plays as O, human as X
         currentPlayer = 'X';
-        document.getElementById('turn-indicator').textContent = `${player1.name}'s Turn`;
-        document.getElementById('game-status').textContent = `Group Stage: ${player1.name} vs ${player2.name} (AI)`;
+    } else if (player2.type === 'ai') {
         tournament.currentMatchAIPlayer = player2;
+        currentPlayer = 'X';
+    }
+    
+    // Update UI
+    if (tournament.currentMatchAIPlayer) {
+        const humanPlayer = tournament.currentMatchAIPlayer === player1 ? player2 : player1;
+        document.getElementById('turn-indicator').textContent = `${humanPlayer.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Group Stage: ${player1.name} ${player1.type === 'ai' ? '(AI)' : ''} vs ${player2.name} ${player2.type === 'ai' ? '(AI)' : ''}`;
     } else {
-        // Both human
         document.getElementById('turn-indicator').textContent = `${player1.name}'s Turn`;
         document.getElementById('game-status').textContent = `Group Stage: ${player1.name} vs ${player2.name}`;
-        tournament.currentMatchAIPlayer = null;
     }
     
     // Show appropriate board
@@ -1080,6 +1034,27 @@ function startNextGroupMatch() {
     } else {
         document.getElementById('standard-board').style.display = 'grid';
         document.getElementById('ultimate-board').style.display = 'none';
+    }
+    
+    // If both players are AI, start AI vs AI match
+    if (player1.type === 'ai' && player2.type === 'ai') {
+        // Set up AI vs AI match
+        tournament.currentMatchAIPlayer = player1;
+        currentPlayer = 'O';
+        document.getElementById('turn-indicator').textContent = `${player1.name} (AI) thinking...`;
+        document.getElementById('game-status').textContent = `AI Match: ${player1.name} vs ${player2.name}`;
+        
+        // Start AI vs AI match
+        setTimeout(() => {
+            if (tournament.gameType === 'ultimate') {
+                makeUltimateAIMove();
+            } else {
+                makeAIMove();
+            }
+        }, 500);
+    } else if (player1.type === 'ai' || player2.type === 'ai') {
+        // One AI, one human - human starts
+        currentPlayer = 'X';
     }
     
     // Update tournament display
@@ -1154,8 +1129,8 @@ function startNextKnockoutMatch() {
     const player2 = currentMatch.player2;
     
     // Get full player objects
-    const player1Obj = tournament.players.find(p => p.name === (typeof player1 === 'object' ? player1.name : player1));
-    const player2Obj = tournament.players.find(p => p.name === (typeof player2 === 'object' ? player2.name : player2));
+    const player1Obj = typeof player1 === 'object' ? player1 : tournament.players.find(p => p.name === player1);
+    const player2Obj = typeof player2 === 'object' ? player2 : tournament.players.find(p => p.name === player2);
     
     tournament.currentMatchPlayers = [player1Obj, player2Obj];
     
@@ -1175,21 +1150,28 @@ function startNextKnockoutMatch() {
     currentPlayer = 'X';
     gameOver = false;
     
-    // Update UI
-    if (player1Obj.type === 'ai') {
-        currentPlayer = 'X';
-        document.getElementById('turn-indicator').textContent = `${player2Obj.name}'s Turn`;
-        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} (AI) vs ${player2Obj.name}`;
+    // Set up AI if needed
+    tournament.currentMatchAIPlayer = null;
+    if (player1Obj.type === 'ai' && player2Obj.type === 'ai') {
+        // Both are AI
+        tournament.currentMatchAIPlayer = Math.random() < 0.5 ? player1Obj : player2Obj;
+        currentPlayer = tournament.currentMatchAIPlayer === player1Obj ? 'O' : 'X';
+    } else if (player1Obj.type === 'ai') {
         tournament.currentMatchAIPlayer = player1Obj;
-    } else if (player2Obj.type === 'ai') {
         currentPlayer = 'X';
-        document.getElementById('turn-indicator').textContent = `${player1Obj.name}'s Turn`;
-        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name} (AI)`;
+    } else if (player2Obj.type === 'ai') {
         tournament.currentMatchAIPlayer = player2Obj;
+        currentPlayer = 'X';
+    }
+    
+    // Update UI
+    if (tournament.currentMatchAIPlayer) {
+        const humanPlayer = tournament.currentMatchAIPlayer === player1Obj ? player2Obj : player1Obj;
+        document.getElementById('turn-indicator').textContent = `${humanPlayer.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} ${player1Obj.type === 'ai' ? '(AI)' : ''} vs ${player2Obj.name} ${player2Obj.type === 'ai' ? '(AI)' : ''}`;
     } else {
         document.getElementById('turn-indicator').textContent = `${player1Obj.name}'s Turn`;
         document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
-        tournament.currentMatchAIPlayer = null;
     }
     
     // Show appropriate board
@@ -1199,6 +1181,23 @@ function startNextKnockoutMatch() {
     } else {
         document.getElementById('standard-board').style.display = 'grid';
         document.getElementById('ultimate-board').style.display = 'none';
+    }
+    
+    // If both players are AI, start AI vs AI match
+    if (player1Obj.type === 'ai' && player2Obj.type === 'ai') {
+        tournament.currentMatchAIPlayer = player1Obj;
+        currentPlayer = 'O';
+        document.getElementById('turn-indicator').textContent = `${player1Obj.name} (AI) thinking...`;
+        document.getElementById('game-status').textContent = `AI Match: ${player1Obj.name} vs ${player2Obj.name}`;
+        
+        // Start AI vs AI match
+        setTimeout(() => {
+            if (tournament.gameType === 'ultimate') {
+                makeUltimateAIMove();
+            } else {
+                makeAIMove();
+            }
+        }, 500);
     }
     
     // Update tournament display
@@ -1213,7 +1212,7 @@ function endTournament() {
         type: 'group_knockout',
         gameType: 'standard',
         aiDifficulty: 'medium',
-        aiPersonalities: [...TOURNAMENT_AI_PERSONALITIES],
+        allAI: true,
         stage: 'setup',
         players: [],
         groups: [],
@@ -1251,7 +1250,9 @@ function recordTournamentMatchResult(winnerSymbol) {
         matchWinner = player1.id;
     } else if (winnerSymbol === 'O') {
         matchWinner = player2.id;
-    } // Draw remains null
+    } else if (winnerSymbol === null) {
+        matchWinner = null; // Draw
+    }
     
     // Update match result
     if (tournament.stage === 'group') {
@@ -1312,6 +1313,8 @@ function recordTournamentMatchResult(winnerSymbol) {
         
         // Move to next match
         tournament.currentGroupMatch++;
+        
+        // Save game result
         saveGame(winnerSymbol, winnerSymbol === 'X' ? `${player1.name} wins` : winnerSymbol === 'O' ? `${player2.name} wins` : 'Draw');
         
     } else if (tournament.stage === 'knockout') {
@@ -1354,6 +1357,8 @@ function recordTournamentMatchResult(winnerSymbol) {
         
         // Move to next match
         tournament.currentKnockoutMatch++;
+        
+        // Save game result
         saveGame(winnerSymbol, winnerSymbol === 'X' ? `${player1.name} wins` : winnerSymbol === 'O' ? `${player2.name} wins` : 'Draw');
     }
 }
@@ -1454,7 +1459,7 @@ function handleCellClick(e) {
     }
 }
 
-// ── Save a finished game to the server with gameMode and AI learning data ───────────────────────
+// ── Save a finished game to the server with gameMode and AI learning data ────────────
 async function saveGame(winner, result) {
     try {
         const isAIGame = gameMode === 'ai' || gameMode === 'ultimate-ai';
@@ -1472,8 +1477,7 @@ async function saveGame(winner, result) {
             tournament: {
                 size: tournament.size,
                 type: tournament.type,
-                gameType: tournament.gameType,
-                stage: tournament.stage
+                gameType: tournament.gameType
             },
             matchResult: {
                 winner: winner,
@@ -1537,6 +1541,10 @@ async function loadAILearningData() {
     }
 }
 
+// [Rest of the code - loadHistory, loadStats, loadAIStats, loadLeaderboard, loadLeaderboardByMode, 
+//  loadAILeaderboard, loadAILeaderboardByMode, resetStats, clearHistory, toggleGameMode, 
+//  setAIDifficulty, setAIPersonality, resetGame, initBoard, window.onload, register, login, logout, showGame]
+
 async function refreshAllStats() {
     try {
         const statsElements = document.querySelectorAll('.stat-value, .global-stat-value');
@@ -1588,7 +1596,6 @@ async function loadHistory() {
                 ? `<div class="game-meta">Mode: ${gameModeDisplay}<br>Difficulty: ${game.aiDifficulty}, Personality: ${game.aiPersonality || 'neutral'}</div>`
                 : `<div class="game-meta">Mode: ${gameModeDisplay}</div>`;
             
-            // Add tournament info if present
             const tournamentInfo = game.tournamentData ? 
                 `<div class="game-meta">Tournament: ${game.tournamentData.tournament?.size} players, ${game.tournamentData.tournament?.gameType || 'standard'} mode</div>` : '';
 
@@ -1611,7 +1618,6 @@ async function loadStats() {
         const byMode = data.byMode || {};
         const global = data.global || { wins: 0, losses: 0, draws: 0 };
         
-        // Update by difficulty stats (for backward compatibility)
         const byDifficulty = {};
         ['easy', 'medium', 'hard'].forEach(difficulty => {
             const diffStats = byMode[difficulty] || { wins: 0, losses: 0, draws: 0 };
@@ -1787,7 +1793,6 @@ async function clearHistory() {
     }
 }
 
-// Modified toggleGameMode to handle tournament
 function toggleGameMode() {
     const modeSelect = document.getElementById('game-mode');
     gameMode = modeSelect.value;
@@ -1798,7 +1803,6 @@ function toggleGameMode() {
     const tournamentSettings = document.getElementById('tournament-settings');
     const tournamentDisplay = document.getElementById('tournament-display');
     
-    // Hide all special sections first
     difficultySection.style.display = 'none';
     personalitySection.style.display = 'none';
     tournamentSettings.style.display = 'none';
@@ -1813,7 +1817,6 @@ function toggleGameMode() {
         if (aiPersonality === null) aiPersonality = 'neutral';
         document.getElementById('ai-difficulty').value = aiDifficulty;
         document.getElementById('ai-personality').value = aiPersonality;
-        // CP10-c2: Load learning data when switching to AI mode
         loadAILearningData();
     } else if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') {
         if (gameMode === 'ultimate-ai') {
@@ -1823,7 +1826,6 @@ function toggleGameMode() {
             if (aiPersonality === null) aiPersonality = 'neutral';
             document.getElementById('ai-difficulty').value = aiDifficulty;
             document.getElementById('ai-personality').value = aiPersonality;
-            // CP10-c2: Load learning data when switching to Ultimate AI mode
             loadAILearningData();
         } else {
             difficultySection.style.display = 'none';
@@ -1837,17 +1839,15 @@ function toggleGameMode() {
         ultimateBoard.style.display = 'none';
         tournamentDisplay.style.display = 'none';
         
-        // Initialize tournament UI
         updateTournamentUI();
         
-        // Reset tournament state
         tournament = {
             active: false,
             size: parseInt(document.getElementById('tournament-size').value) || 32,
             type: document.getElementById('tournament-type').value || 'group_knockout',
             gameType: document.getElementById('tournament-game-type').value || 'standard',
             aiDifficulty: document.getElementById('tournament-ai-difficulty').value || 'medium',
-            aiPersonalities: [...TOURNAMENT_AI_PERSONALITIES],
+            allAI: document.getElementById('all-ai-checkbox').checked,
             stage: 'setup',
             players: [],
             groups: [],
@@ -1876,7 +1876,6 @@ function setAIDifficulty() {
 
 function setAIPersonality() { 
     aiPersonality = document.getElementById('ai-personality').value; 
-    // CP10-c2: Load learning data when personality changes
     if (gameMode === 'ai' || gameMode === 'ultimate-ai') {
         loadAILearningData();
     }
@@ -1918,7 +1917,6 @@ function resetGame() {
     
     document.getElementById('game-status').textContent = '';
     
-    // CP10-c2: Reset move history on new game
     aiMoveHistory = [];
 }
 
@@ -1982,14 +1980,13 @@ async function logout() {
         psychologist: null
     };
     
-    // Reset tournament
     tournament = {
         active: false,
         size: 32,
         type: 'group_knockout',
         gameType: 'standard',
         aiDifficulty: 'medium',
-        aiPersonalities: [...TOURNAMENT_AI_PERSONALITIES],
+        allAI: true,
         stage: 'setup',
         players: [],
         groups: [],

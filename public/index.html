@@ -32,6 +32,7 @@
                     <option value="ai">Player vs AI</option>
                     <option value="ultimate">Ultimate Tic Tac Toe (PvP)</option>
                     <option value="ultimate-ai">Ultimate Tic Tac Toe (vs AI)</option>
+                    <option value="tournament">Tournament Mode</option>
                 </select>
             </div>
 
@@ -52,10 +53,46 @@
                     <option value="psychologist">Psychologist</option>
                 </select>
             </div>
+
+            <!-- Tournament Settings -->
+            <div id="tournament-settings" style="display: none;">
+                <div id="tournament-size-section">
+                    <label for="tournament-size">Tournament Size:</label>
+                    <select id="tournament-size" onchange="updateTournamentUI()">
+                        <option value="4">4 Players</option>
+                        <option value="8">8 Players</option>
+                        <option value="16">16 Players</option>
+                        <option value="32" selected>32 Players</option>
+                    </select>
+                </div>
+                <div id="tournament-type-section">
+                    <label for="tournament-type">Tournament Type:</label>
+                    <select id="tournament-type">
+                        <option value="group_knockout" selected>Group Stage + Knockout</option>
+                        <option value="single_elimination">Single Elimination</option>
+                    </select>
+                </div>
+                <div id="tournament-players-section">
+                    <label>Players:</label>
+                    <div id="tournament-players-container">
+                        <!-- Player inputs will be added dynamically -->
+                    </div>
+                    <button onclick="addTournamentPlayer()" id="add-player-btn">+ Add Player</button>
+                </div>
+                <button onclick="startTournament()" id="start-tournament-btn" style="display: none;">Start Tournament</button>
+            </div>
         </div>
 
         <p id="turn-indicator">Player X's Turn</p>
         <p id="game-status"></p>
+
+        <!-- Tournament Display -->
+        <div id="tournament-display" style="display: none;">
+            <h3 id="tournament-stage-title">Tournament</h3>
+            <div id="tournament-bracket"></div>
+            <button onclick="nextTournamentMatch()" id="next-match-btn" style="display: none;">Next Match</button>
+            <button onclick="endTournament()" id="end-tournament-btn" style="display: none;">End Tournament</button>
+        </div>
 
         <!-- Standard Tic Tac Toe Board (for PvP and AI modes) -->
         <div id="standard-board" class="board">

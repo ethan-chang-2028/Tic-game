@@ -54,28 +54,61 @@ function highlightWinner(boardType, boardIndex = null) {
     }
 }
 
-// ── AI Personalities with Varied Responses ────────────────────
+// ── AI Personalities with Varied Responses and Patterns ────────────────────
 const personalities = {
     neutral: {
         aiWin: ["AI wins! 🎉", "AI wins! Good game!", "AI wins! Try again!", "AI wins! You'll get it next time!"],
         playerWin: ["You got me this time...", "Nice move!", "Well played!", "I'll get you next time!", "You won this round!", "Good strategy!"],
         draw: ["It's a draw! 🤝", "A tie! Close game!", "Draw! Want a rematch?", "No winner this time!"],
         thinking: ["AI is thinking...", "Calculating...", "Making a move...", "Processing..."],
-        turn: ["Your Turn", "Your move", "Go ahead", "Make your move"]
+        turn: ["Your Turn", "Your move", "Go ahead", "Make your move"],
+        // CP10-c2: AI Pattern Weights
+        patternWeights: {
+            winSmallBoard: 1000,
+            blockSmallBoard: 500,
+            winLargeBoard: 10000,
+            blockLargeBoard: 5000,
+            centerSmall: 10,
+            cornerSmall: 5,
+            centerLarge: 10,
+            cornerLarge: 5
+        }
     },
     mathematician: {
         aiWin: ["AI wins by the power of logic! ∫√∑", "AI wins! The numbers don't lie.", "AI wins! A calculated victory.", "AI wins! x + y = victory!"],
         playerWin: ["Your strategy was... unexpected. Recalculating...", "An anomaly in the data!", "I need to recalibrate my algorithms.", "That was statistically unlikely!", "My calculations were off by a factor of π!", "You found the flaw in my logic matrix!"],
         draw: ["A perfect equilibrium! 1-1=0", "The game is in balance.", "A draw! The math checks out.", "Symmetry achieved!"],
         thinking: ["Calculating optimal move...", "Running simulations...", "Solving the equation...", "Analyzing probabilities..."],
-        turn: ["Your move, human.", "Input your coordinates.", "What's your next variable?", "Your turn to solve."]
+        turn: ["Your move, human.", "Input your coordinates.", "What's your next variable?", "Your turn to solve."],
+        // CP10-c2: AI Pattern Weights - Center control, aggressive
+        patternWeights: {
+            winSmallBoard: 1000,
+            blockSmallBoard: 500,
+            winLargeBoard: 10000,
+            blockLargeBoard: 5000,
+            centerSmall: 20,  // Strong center preference
+            cornerSmall: 8,   // Strong corner preference
+            centerLarge: 20,  // Strong center large board preference
+            cornerLarge: 8    // Strong corner large board preference
+        }
     },
     psychologist: {
         aiWin: ["AI wins! I knew you'd pick that spot. 😉", "AI wins! Your patterns are predictable.", "AI wins! I'm inside your head.", "AI wins! Did you see that coming?"],
         playerWin: ["Interesting... you outsmarted me. Let's analyze that.", "Fascinating choice! Tell me more.", "Your subconscious led you well.", "I didn't expect that. Well done!", "Your psychological profile is more complex than I calculated!", "You broke my behavioral prediction model!"],
         draw: ["A stalemate. Your subconscious is strong.", "A draw! We're equally matched.", "No winner. The mind is complex.", "A tie. What were you thinking?"],
         thinking: ["Analyzing your patterns...", "Reading your mind...", "Predicting your next move...", "Studying your behavior..."],
-        turn: ["What's your next move?", "Show me your strategy.", "Where will you go?", "Your turn to reveal yourself."]
+        turn: ["What's your next move?", "Show me your strategy.", "Where will you go?", "Your turn to reveal yourself."],
+        // CP10-c2: AI Pattern Weights - Defensive, predictive
+        patternWeights: {
+            winSmallBoard: 800,
+            blockSmallBoard: 800,  // Higher weight on blocking
+            winLargeBoard: 10000,
+            blockLargeBoard: 6000, // Higher weight on blocking large board
+            centerSmall: 5,
+            cornerSmall: 3,
+            centerLarge: 5,
+            cornerLarge: 3
+        }
     }
 };
 
@@ -212,8 +245,6 @@ function makeAIMove() {
         if (winner) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            // In AI mode: O is AI, X is player
-            // In PvP mode: both are players, so never show AI win
             const isAIWinner = (gameMode === 'ai' || gameMode === 'ultimate-ai') && winner === 'O';
             document.getElementById('game-status').textContent = isAIWinner 
                 ? getAIWinMessage() 
@@ -252,7 +283,9 @@ function isLargeBoardDrawn() {
     return largeBoard.every(cell => cell !== '');
 }
 
-// Ultimate Tic Tac Toe: AI Logic
+// ── Ultimate Tic Tac Toe: AI Logic with CP10-c2 Patterns ────────────
+
+// Get all available moves for AI in Ultimate mode
 function getAvailableUltimateMoves() {
     const moves = [];
     for (let largeIndex = 0; largeIndex < 9; largeIndex++) {
@@ -266,57 +299,101 @@ function getAvailableUltimateMoves() {
     return moves;
 }
 
+// CP10-c2: Evaluate a move for AI in Ultimate mode with personality-based patterns
 function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
+    const personality = getEffectivePersonality();
+    const p = personalities[personality] || personalities.neutral;
+    const weights = p.patternWeights || personalities.neutral.patternWeights;
+    
     const playerSymbol = isAI ? 'O' : 'X';
     const opponentSymbol = isAI ? 'X' : 'O';
     let score = 0;
+
+    // Simulate the move
     const originalValue = smallBoards[largeIndex][smallIndex];
     smallBoards[largeIndex][smallIndex] = playerSymbol;
 
+    // Check if this move wins the small board
     if (checkSmallBoardWinner(largeIndex) === playerSymbol) {
+        // If winning this small board wins the large board, highest priority
         const tempLargeBoard = [...largeBoard];
         tempLargeBoard[largeIndex] = playerSymbol;
         if (checkWinner(tempLargeBoard) === playerSymbol) {
-            score += 10000;
+            score += weights.winLargeBoard || 10000;
         } else {
-            score += 1000;
+            score += weights.winSmallBoard || 1000;
         }
     }
 
+    // Check if this move blocks opponent from winning the small board
     smallBoards[largeIndex][smallIndex] = opponentSymbol;
     if (checkSmallBoardWinner(largeIndex) === opponentSymbol) {
+        // If blocking prevents opponent from winning the large board, high priority
         const tempLargeBoard = [...largeBoard];
         tempLargeBoard[largeIndex] = opponentSymbol;
         if (checkWinner(tempLargeBoard) === opponentSymbol) {
-            score += 5000;
+            score += weights.blockLargeBoard || 5000;
         } else {
-            score += 500;
+            score += weights.blockSmallBoard || 500;
         }
     }
     smallBoards[largeIndex][smallIndex] = playerSymbol;
 
-    if (smallIndex === 4) score += 10;
-    if ([0, 2, 6, 8].includes(smallIndex)) score += 5;
-    if (largeIndex === 4) score += 10;
-    if ([0, 2, 6, 8].includes(largeIndex)) score += 5;
+    // Strategic positioning: center and corners are better
+    // CP10-c2: Use personality-based weights
+    if (smallIndex === 4) score += weights.centerSmall || 10;
+    if ([0, 2, 6, 8].includes(smallIndex)) score += weights.cornerSmall || 5;
+
+    // Strategic large board positioning
+    // CP10-c2: Use personality-based weights
+    if (largeIndex === 4) score += weights.centerLarge || 10;
+    if ([0, 2, 6, 8].includes(largeIndex)) score += weights.cornerLarge || 5;
+
+    // Restore the board
     smallBoards[largeIndex][smallIndex] = originalValue;
+
     return score;
 }
 
+// CP10-c2: Get the best AI move for Ultimate mode with personality patterns
 function getUltimateAIMove() {
     const availableMoves = getAvailableUltimateMoves();
     if (availableMoves.length === 0) return null;
+
+    const personality = getEffectivePersonality();
+    const p = personalities[personality] || personalities.neutral;
+
     if (aiDifficulty === 'easy') {
-        return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+        // Random move
+        const randomIndex = Math.floor(Math.random() * availableMoves.length);
+        return availableMoves[randomIndex];
     }
-    let bestMove = null, bestScore = -Infinity;
+
+    // For medium and hard, evaluate all moves
+    let bestMove = null;
+    let bestScore = -Infinity;
+
     for (const move of availableMoves) {
         const score = evaluateUltimateMove(move.largeIndex, move.smallIndex, true);
-        if (score > bestScore) { bestScore = score; bestMove = move; }
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
     }
-    if (aiDifficulty === 'medium' && Math.random() < 0.2) {
-        return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+
+    // CP10-c2: Personality-based randomness
+    // Mathematician: Less random (10% chance of random move on medium)
+    // Psychologist: More random (30% chance of random move on medium)
+    // Neutral: Standard (20% chance of random move on medium)
+    let randomness = 0.2; // Default for neutral
+    if (personality === 'mathematician') randomness = 0.1;
+    if (personality === 'psychologist') randomness = 0.3;
+
+    if (aiDifficulty === 'medium' && Math.random() < randomness) {
+        const randomIndex = Math.floor(Math.random() * availableMoves.length);
+        return availableMoves[randomIndex];
     }
+
     return bestMove;
 }
 
@@ -325,9 +402,13 @@ function makeUltimateAIMove() {
     const aiMove = getUltimateAIMove();
     if (aiMove) {
         const { largeIndex, smallIndex } = aiMove;
+        
+        // Make the move
         smallBoards[largeIndex][smallIndex] = 'O';
         const cell = document.querySelector(`.small-cell[data-large-index="${largeIndex}"][data-small-index="${smallIndex}"]`);
         if (cell) { cell.textContent = 'O'; cell.classList.add('taken'); }
+
+        // Check if this small board is now won
         const smallWinner = checkSmallBoardWinner(largeIndex);
         if (smallWinner) {
             largeBoard[largeIndex] = smallWinner;
@@ -339,6 +420,8 @@ function makeUltimateAIMove() {
             const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
             if (largeCellWinner) { largeCellWinner.textContent = 'Draw'; largeCellWinner.classList.add('draw'); }
         }
+
+        // Check if the large board is won
         const largeWinner = checkLargeBoardWinner();
         if (largeWinner) {
             ultimateGameOver = true;
@@ -366,9 +449,11 @@ function handleSmallCellClick(e) {
     const largeIndex = parseInt(e.target.getAttribute('data-large-index'));
     const smallIndex = parseInt(e.target.getAttribute('data-small-index'));
     if (isSmallBoardFinished(largeIndex) || smallBoards[largeIndex][smallIndex] !== '') return;
+    
     smallBoards[largeIndex][smallIndex] = currentPlayer;
     e.target.textContent = currentPlayer;
     e.target.classList.add('taken');
+    
     const smallWinner = checkSmallBoardWinner(largeIndex);
     if (smallWinner) {
         largeBoard[largeIndex] = smallWinner;
@@ -380,6 +465,7 @@ function handleSmallCellClick(e) {
         const largeCellWinner = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
         if (largeCellWinner) { largeCellWinner.textContent = 'Draw'; largeCellWinner.classList.add('draw'); }
     }
+    
     const largeWinner = checkLargeBoardWinner();
     if (largeWinner) {
         ultimateGameOver = true;
@@ -396,7 +482,9 @@ function handleSmallCellClick(e) {
         saveGame(null, 'Ultimate Tic Tac Toe draw');
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O' ? getRandomMessage('thinking') : `Player ${currentPlayer}'s Turn (Any Board)`;
+        document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O' 
+            ? getRandomMessage('thinking') 
+            : `Player ${currentPlayer}'s Turn (Any Board)`;
         if (gameMode === 'ultimate-ai' && currentPlayer === 'O') setTimeout(makeUltimateAIMove, 1000);
     }
 }
@@ -733,7 +821,6 @@ function handleCellClick(e) {
     if (winner) { 
         gameOver = true; 
         document.getElementById('turn-indicator').textContent = ''; 
-        // Check if it's AI mode AND AI won (O), otherwise it's a player win
         const isAIWinner = (gameMode === 'ai' || gameMode === 'ultimate-ai') && winner === 'O';
         document.getElementById('game-status').textContent = isAIWinner 
             ? getAIWinMessage() 

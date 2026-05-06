@@ -65,13 +65,32 @@
                         <option value="32" selected>32 Players</option>
                     </select>
                 </div>
-                <div id="tournament-type-section">
-                    <label for="tournament-type">Tournament Type:</label>
-                    <select id="tournament-type">
-                        <option value="group_knockout" selected>Group Stage + Knockout</option>
-                        <option value="single_elimination">Single Elimination</option>
+                
+                <div id="tournament-game-type-section">
+                    <label for="tournament-game-type">Game Type:</label>
+                    <select id="tournament-game-type">
+                        <option value="standard">Standard Tic Tac Toe</option>
+                        <option value="ultimate">Ultimate Tic Tac Toe</option>
                     </select>
                 </div>
+                
+                <div id="tournament-ai-difficulty-section" style="display: none;">
+                    <label for="tournament-ai-difficulty">AI Difficulty (Tournament):</label>
+                    <select id="tournament-ai-difficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                    </select>
+                </div>
+                
+                <div id="tournament-ai-personality-section" style="display: none;">
+                    <label>AI Personalities:</label>
+                    <div id="tournament-ai-personalities">
+                        <label><input type="checkbox" value="neutral" checked onchange="updateTournamentAIOptions()"> Neutral</label>
+                        <label><input type="checkbox" value="mathematician" checked onchange="updateTournamentAIOptions()"> Mathematician</label>
+                        <label><input type="checkbox" value="psychologist" checked onchange="updateTournamentAIOptions()"> Psychologist</label>
+                    </div>
+                </div>
+                
                 <div id="tournament-players-section">
                     <label>Players:</label>
                     <div id="tournament-players-container">
@@ -79,6 +98,13 @@
                     </div>
                     <button onclick="addTournamentPlayer()" id="add-player-btn">+ Add Player</button>
                 </div>
+                
+                <div id="tournament-player-types">
+                    <p><strong>Player Types:</strong></p>
+                    <label><input type="radio" name="player-type" value="human" checked> Human Player</label>
+                    <label><input type="radio" name="player-type" value="ai"> AI Player</label>
+                </div>
+                
                 <button onclick="startTournament()" id="start-tournament-btn" style="display: none;">Start Tournament</button>
             </div>
         </div>

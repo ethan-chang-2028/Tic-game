@@ -11,6 +11,16 @@ let largeBoard = ['', '', '', '', '', '', '', '', '']; // Tracks winner of each 
 let smallBoards = Array(9).fill().map(() => Array(9).fill('')); // 9 small boards, each with 9 cells
 let ultimateGameOver = false;
 
+// ── AI Learning Data ───────────────────────────────────────
+// Stores learned patterns for each personality
+let aiLearningData = {
+    neutral: null,
+    mathematician: null,
+    psychologist: null
+};
+// Tracks AI moves during current game for learning
+let aiMoveHistory = [];
+
 const WIN_COMBOS = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
     [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
@@ -62,12 +72,12 @@ const personalities = {
         draw: ["It's a draw! 🤝", "A tie! Close game!", "Draw! Want a rematch?", "No winner this time!"],
         thinking: ["AI is thinking...", "Calculating...", "Making a move...", "Processing..."],
         turn: ["Your Turn", "Your move", "Go ahead", "Make your move"],
-        // CP10-c2: AI Pattern Weights
+        // Default pattern weights
         patternWeights: {
             winSmallBoard: 1000,
-            blockSmallBoard: 500,
+            blockSmallBoard: 1000,
             winLargeBoard: 10000,
-            blockLargeBoard: 5000,
+            blockLargeBoard: 10000,
             centerSmall: 10,
             cornerSmall: 5,
             centerLarge: 10,
@@ -80,16 +90,16 @@ const personalities = {
         draw: ["A perfect equilibrium! 1-1=0", "The game is in balance.", "A draw! The math checks out.", "Symmetry achieved!"],
         thinking: ["Calculating optimal move...", "Running simulations...", "Solving the equation...", "Analyzing probabilities..."],
         turn: ["Your move, human.", "Input your coordinates.", "What's your next variable?", "Your turn to solve."],
-        // CP10-c2: AI Pattern Weights - Center control, aggressive
+        // Aggressive center control
         patternWeights: {
-            winSmallBoard: 1000,
-            blockSmallBoard: 500,
+            winSmallBoard: 1500,
+            blockSmallBoard: 800,
             winLargeBoard: 10000,
-            blockLargeBoard: 5000,
-            centerSmall: 20,  // Strong center preference
-            cornerSmall: 8,   // Strong corner preference
-            centerLarge: 20,  // Strong center large board preference
-            cornerLarge: 8    // Strong corner large board preference
+            blockLargeBoard: 10000,
+            centerSmall: 30,
+            cornerSmall: 15,
+            centerLarge: 30,
+            cornerLarge: 15
         }
     },
     psychologist: {
@@ -98,12 +108,12 @@ const personalities = {
         draw: ["A stalemate. Your subconscious is strong.", "A draw! We're equally matched.", "No winner. The mind is complex.", "A tie. What were you thinking?"],
         thinking: ["Analyzing your patterns...", "Reading your mind...", "Predicting your next move...", "Studying your behavior..."],
         turn: ["What's your next move?", "Show me your strategy.", "Where will you go?", "Your turn to reveal yourself."],
-        // CP10-c2: AI Pattern Weights - Defensive, predictive
+        // Defensive, predictive
         patternWeights: {
             winSmallBoard: 800,
-            blockSmallBoard: 800,  // Higher weight on blocking
+            blockSmallBoard: 1500,
             winLargeBoard: 10000,
-            blockLargeBoard: 6000, // Higher weight on blocking large board
+            blockLargeBoard: 10000,
             centerSmall: 5,
             cornerSmall: 3,
             centerLarge: 5,
@@ -117,7 +127,7 @@ function getEffectivePersonality() {
     if (gameMode === 'ai' || gameMode === 'ultimate-ai') {
         return aiPersonality || 'neutral';
     }
-    return 'neutral'; // PvP modes use neutral
+    return 'neutral';
 }
 
 // Helper to get player win message (AI loses)
@@ -150,6 +160,16 @@ function getRandomMessage(type, winner) {
     
     const randomIndex = Math.floor(Math.random() * messages.length);
     return messages[randomIndex];
+}
+
+// Get the current pattern weights (combining default + learned)
+function getCurrentPatternWeights() {
+    const personality = getEffectivePersonality();
+    const defaultWeights = personalities[personality]?.patternWeights || personalities.neutral.patternWeights;
+    const learnedWeights = aiLearningData[personality] || {};
+    
+    // Merge learned weights with defaults
+    return { ...defaultWeights, ...learnedWeights };
 }
 
 // ── AI Logic: Minimax Algorithm (Hard) ───────────────────────
@@ -283,7 +303,7 @@ function isLargeBoardDrawn() {
     return largeBoard.every(cell => cell !== '');
 }
 
-// ── Ultimate Tic Tac Toe: AI Logic with CP10-c2 Patterns ────────────
+// ── Ultimate Tic Tac Toe: AI Logic with CP10-c2 Patterns & Learning ────────────
 
 // Get all available moves for AI in Ultimate mode
 function getAvailableUltimateMoves() {
@@ -299,11 +319,9 @@ function getAvailableUltimateMoves() {
     return moves;
 }
 
-// CP10-c2: Evaluate a move for AI in Ultimate mode with personality-based patterns
+// CP10-c2: Evaluate a move for AI in Ultimate mode with personality-based patterns & learning
 function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
-    const personality = getEffectivePersonality();
-    const p = personalities[personality] || personalities.neutral;
-    const weights = p.patternWeights || personalities.neutral.patternWeights;
+    const weights = getCurrentPatternWeights();
     
     const playerSymbol = isAI ? 'O' : 'X';
     const opponentSymbol = isAI ? 'X' : 'O';
@@ -315,7 +333,6 @@ function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
 
     // Check if this move wins the small board
     if (checkSmallBoardWinner(largeIndex) === playerSymbol) {
-        // If winning this small board wins the large board, highest priority
         const tempLargeBoard = [...largeBoard];
         tempLargeBoard[largeIndex] = playerSymbol;
         if (checkWinner(tempLargeBoard) === playerSymbol) {
@@ -328,24 +345,19 @@ function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
     // Check if this move blocks opponent from winning the small board
     smallBoards[largeIndex][smallIndex] = opponentSymbol;
     if (checkSmallBoardWinner(largeIndex) === opponentSymbol) {
-        // If blocking prevents opponent from winning the large board, high priority
         const tempLargeBoard = [...largeBoard];
         tempLargeBoard[largeIndex] = opponentSymbol;
         if (checkWinner(tempLargeBoard) === opponentSymbol) {
-            score += weights.blockLargeBoard || 5000;
+            score += weights.blockLargeBoard || 10000;
         } else {
-            score += weights.blockSmallBoard || 500;
+            score += weights.blockSmallBoard || 1000;
         }
     }
     smallBoards[largeIndex][smallIndex] = playerSymbol;
 
-    // Strategic positioning: center and corners are better
-    // CP10-c2: Use personality-based weights
+    // Strategic positioning with learned weights
     if (smallIndex === 4) score += weights.centerSmall || 10;
     if ([0, 2, 6, 8].includes(smallIndex)) score += weights.cornerSmall || 5;
-
-    // Strategic large board positioning
-    // CP10-c2: Use personality-based weights
     if (largeIndex === 4) score += weights.centerLarge || 10;
     if ([0, 2, 6, 8].includes(largeIndex)) score += weights.cornerLarge || 5;
 
@@ -355,7 +367,7 @@ function evaluateUltimateMove(largeIndex, smallIndex, isAI) {
     return score;
 }
 
-// CP10-c2: Get the best AI move for Ultimate mode with personality patterns
+// CP10-c2: Get the best AI move for Ultimate mode with personality patterns & learning
 function getUltimateAIMove() {
     const availableMoves = getAvailableUltimateMoves();
     if (availableMoves.length === 0) return null;
@@ -382,10 +394,7 @@ function getUltimateAIMove() {
     }
 
     // CP10-c2: Personality-based randomness
-    // Mathematician: Less random (10% chance of random move on medium)
-    // Psychologist: More random (30% chance of random move on medium)
-    // Neutral: Standard (20% chance of random move on medium)
-    let randomness = 0.2; // Default for neutral
+    let randomness = 0.2;
     if (personality === 'mathematician') randomness = 0.1;
     if (personality === 'psychologist') randomness = 0.3;
 
@@ -397,11 +406,36 @@ function getUltimateAIMove() {
     return bestMove;
 }
 
+// CP10-c2: Record AI move for learning
+function recordAIMove(largeIndex, smallIndex, score, boardSnapshot) {
+    if (gameMode !== 'ultimate-ai') return;
+    
+    aiMoveHistory.push({
+        largeIndex,
+        smallIndex,
+        score,
+        boardSnapshot: {
+            largeBoard: [...largeBoard],
+            smallBoards: smallBoards.map(arr => [...arr])
+        },
+        timestamp: Date.now()
+    });
+}
+
 function makeUltimateAIMove() {
     if (ultimateGameOver) return;
     const aiMove = getUltimateAIMove();
     if (aiMove) {
         const { largeIndex, smallIndex } = aiMove;
+        
+        // Record the move for learning
+        const boardSnapshot = {
+            largeBoard: [...largeBoard],
+            smallBoards: smallBoards.map(arr => [...arr])
+        };
+        const weights = getCurrentPatternWeights();
+        const score = evaluateUltimateMove(largeIndex, smallIndex, true);
+        recordAIMove(largeIndex, smallIndex, score, boardSnapshot);
         
         // Make the move
         smallBoards[largeIndex][smallIndex] = 'O';
@@ -489,10 +523,18 @@ function handleSmallCellClick(e) {
     }
 }
 
-// ── Save a finished game to the server with gameMode for leaderboard filtering ───────────────────────
+// ── Save a finished game to the server with gameMode and AI learning data ───────────────────────
 async function saveGame(winner, result) {
     try {
         const isAIGame = gameMode === 'ai' || gameMode === 'ultimate-ai';
+        
+        // CP10-c2: Include AI learning data for Ultimate mode
+        const learningData = gameMode === 'ultimate-ai' ? {
+            aiPersonality: aiPersonality || 'neutral',
+            aiDifficulty: aiDifficulty || 'medium',
+            moveHistory: aiMoveHistory,
+            outcome: winner === 'O' ? 'ai_win' : winner ? 'player_win' : 'draw'
+        } : null;
         
         const response = await fetch('/api/games', {
             method: 'POST',
@@ -504,17 +546,47 @@ async function saveGame(winner, result) {
                 gameMode: gameMode,
                 aiDifficulty: isAIGame ? aiDifficulty : null,
                 aiPersonality: isAIGame ? aiPersonality : null,
+                learningData: learningData,
                 playedAt: new Date().toISOString()
             })
         });
+        
         if (response.ok) { 
             loadHistory(); 
+            // CP10-c2: Load updated learning data after saving
+            if (isAIGame && (gameMode === 'ai' || gameMode === 'ultimate-ai')) {
+                loadAILearningData();
+            }
             setTimeout(() => refreshAllStats(), 300); 
         } else { 
             console.warn('Game not saved (not logged in?)'); 
         }
+        
+        // CP10-c2: Reset move history after saving
+        aiMoveHistory = [];
     } catch (err) { 
         console.error('Error saving game:', err); 
+    }
+}
+
+// CP10-c2: Load AI learning data from server
+async function loadAILearningData() {
+    if (!aiPersonality) return;
+    
+    try {
+        const response = await fetch(`/api/ai-learning?personality=${aiPersonality}&difficulty=${aiDifficulty || 'medium'}`, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            aiLearningData[aiPersonality] = data.learningData || {};
+            console.log(`Loaded learning data for ${aiPersonality}:`, aiLearningData[aiPersonality]);
+        } else {
+            console.warn('Could not load AI learning data');
+        }
+    } catch (err) {
+        console.error('Error loading AI learning data:', err);
     }
 }
 
@@ -774,6 +846,8 @@ function toggleGameMode() {
         if (aiPersonality === null) aiPersonality = 'neutral';
         document.getElementById('ai-difficulty').value = aiDifficulty;
         document.getElementById('ai-personality').value = aiPersonality;
+        // CP10-c2: Load learning data when switching to AI mode
+        loadAILearningData();
     } else if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') {
         if (gameMode === 'ultimate-ai') {
             difficultySection.style.display = 'flex';
@@ -782,6 +856,8 @@ function toggleGameMode() {
             if (aiPersonality === null) aiPersonality = 'neutral';
             document.getElementById('ai-difficulty').value = aiDifficulty;
             document.getElementById('ai-personality').value = aiPersonality;
+            // CP10-c2: Load learning data when switching to Ultimate AI mode
+            loadAILearningData();
         } else {
             difficultySection.style.display = 'none';
             personalitySection.style.display = 'none';
@@ -805,6 +881,10 @@ function setAIDifficulty() {
 
 function setAIPersonality() { 
     aiPersonality = document.getElementById('ai-personality').value; 
+    // CP10-c2: Load learning data when personality changes
+    if (gameMode === 'ai' || gameMode === 'ultimate-ai') {
+        loadAILearningData();
+    }
 }
 
 function handleCellClick(e) {
@@ -879,6 +959,9 @@ function resetGame() {
             : "Player X's Turn";
     
     document.getElementById('game-status').textContent = '';
+    
+    // CP10-c2: Reset move history on new game
+    aiMoveHistory = [];
 }
 
 function initBoard() {
@@ -935,6 +1018,11 @@ async function logout() {
     resetGame(); 
     aiDifficulty = null; 
     aiPersonality = null; 
+    aiLearningData = {
+        neutral: null,
+        mathematician: null,
+        psychologist: null
+    };
 }
 
 function showGame(username) { 

@@ -309,6 +309,59 @@
             border-right: 10px solid transparent;
             border-bottom: 10px solid #ccc;
         }
+        
+        /* Tournament group and knockout styles */
+        .group-match {
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .group-match.current {
+            border-color: #007bff;
+            background: #e9ecef;
+        }
+        
+        .group-match.completed {
+            opacity: 0.7;
+        }
+        
+        .knockout-match {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+        
+        .knockout-match.current {
+            border-color: #007bff;
+            background: #e9ecef;
+        }
+        
+        .knockout-match.completed {
+            opacity: 0.7;
+        }
+        
+        .match-players {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .match-result {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .knockout-round {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -364,10 +417,16 @@
                 <div class="tournament-option">
                     <label for="tournament-size">Tournament Size:</label>
                     <select id="tournament-size" onchange="updateTournamentUI()">
+                        <option value="2">2 Players</option>
                         <option value="4">4 Players</option>
                         <option value="8">8 Players</option>
                         <option value="16">16 Players</option>
-                        <option value="32" selected>32 Players</option>
+                        <option value="32">32 Players</option>
+                        <option value="64">64 Players</option>
+                        <option value="128">128 Players</option>
+                        <option value="256">256 Players</option>
+                        <option value="512">512 Players</option>
+                        <option value="1024">1024 Players</option>
                     </select>
                 </div>
                 
@@ -393,6 +452,13 @@
                         <option value="easy">Easy</option>
                         <option value="medium" selected>Medium</option>
                     </select>
+                </div>
+                
+                <div class="tournament-option">
+                    <label>
+                        <input type="checkbox" id="all-ai-checkbox" checked onchange="toggleAllAI()">
+                        All AI Tournament
+                    </label>
                 </div>
                 
                 <div class="tournament-option">

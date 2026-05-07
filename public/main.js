@@ -97,3 +97,30 @@ async function checkAuth() {
 // Call checkAuth when the page loads
 window.onload = checkAuth;
 
+
+// ── Game state ──────────────────────────────────────────────
+let currentPlayer = 'X';
+let board = ['', '', '', '', '', '', '', '', ''];
+let gameOver = false;
+let gameMode = 'pvp';
+let aiDifficulty = null;
+let aiPersonality = null;
+
+// ── Ultimate Tic Tac Toe state ──────────────────────────────
+let largeBoard = ['', '', '', '', '', '', '', '', '']; // Tracks winner of each small board
+let smallBoards = Array(9).fill().map(() => Array(9).fill('')); // 9 small boards, each with 9 cells
+let ultimateGameOver = false;
+
+// ── AI Learning Data ───────────────────────────────────────
+let aiLearningData = {
+    neutral: null,
+    mathematician: null,
+    psychologist: null
+};
+let aiMoveHistory = [];
+
+// Available AI personalities for tournaments
+const TOURNAMENT_AI_PERSONALITIES = ['neutral', 'mathematician', 'psychologist'];
+const TOURNAMENT_AI_DIFFICULTIES = ['easy', 'medium'];
+
+// ── Tournament State ───────────────────────────────────────

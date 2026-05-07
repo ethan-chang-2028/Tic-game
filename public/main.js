@@ -981,9 +981,23 @@ function generateKnockoutBracketHTML() {
         matches.forEach((m, i) => {
             const globalIdx = side === 'left' ? i : half + i;
             const mt = i === 0 ? topOff : gap;
-            inner += `<div style="margin-top:${mt}px">${renderMatch(m, roundIdx, globalIdx, false)}</div>`;
+            inner += `<div style="margin-top:${mt}px;position:relative">${renderMatch(m, roundIdx, globalIdx, false)}</div>`;
         });
-        return `<div class="bk-col bk-col-${side}"><div class="bk-round-label">${label}</div>${inner}</div>`;
+
+        // Vertical connector lines joining pairs of matches feeding into the next round
+        let vlines = '';
+        const labelH = 24; // approximate label height offset
+        for (let i = 0; i + 1 < matches.length; i += 2) {
+            // Calculate centre Y of each match relative to the column (excluding label)
+            const topMatchCY = topOff + i * (MATCH_H + gap) + MATCH_H / 2;
+            const botMatchCY = topOff + (i + 1) * (MATCH_H + gap) + MATCH_H / 2;
+            const lineTop = topMatchCY + labelH;
+            const lineHeight = botMatchCY - topMatchCY;
+            const stubX = side === 'left' ? 'right:-24px' : 'left:-24px';
+            vlines += `<div style="position:absolute;${stubX};top:${lineTop}px;width:1.5px;height:${lineHeight}px;background:#bbb;pointer-events:none"></div>`;
+        }
+
+        return `<div class="bk-col bk-col-${side}" style="position:relative"><div class="bk-round-label">${label}</div>${inner}${vlines}</div>`;
     }
 
     let leftHTML = '';
@@ -1017,12 +1031,67 @@ function generateTournamentResultsHTML() {
     return html;
 }
 
+// Save AI learning data for each AI player after a tournament match and reload their weights
+async function saveTournamentMatchAILearning(player1, player2, winnerSymbol) {
+    const players = [
+        { player: player1, symbol: 'X' },
+        { player: player2, symbol: 'O' }
+    ];
+    for (const { player, symbol } of players) {
+        if (player.type !== 'ai') continue;
+        const personality = player.personality || 'neutral';
+        const difficulty = player.difficulty || 'medium';
+        const outcome = winnerSymbol === symbol ? 'ai_win' : (winnerSymbol === null ? 'draw' : 'player_win');
+        const learningData = {
+            aiPersonality: personality,
+            aiDifficulty: difficulty,
+            moveHistory: aiMoveHistory,
+            outcome
+        };
+        try {
+            const response = await fetch('/api/games', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    winner: winnerSymbol,
+                    result: winnerSymbol ? `${winnerSymbol} wins` : 'draw',
+                    board: (tournament.gameType === 'ultimate')
+                        ? { largeBoard, smallBoards }
+                        : board,
+                    gameMode: tournament.gameType === 'ultimate' ? 'ultimate-ai' : 'ai',
+                    aiDifficulty: difficulty,
+                    aiPersonality: personality,
+                    learningData,
+                    tournamentData: {
+                        tournament: { size: tournament.size, type: tournament.type, gameType: tournament.gameType },
+                        matchResult: { winner: winnerSymbol, result: winnerSymbol ? `${winnerSymbol} wins` : 'draw' }
+                    }
+                })
+            });
+            if (response.ok) {
+                // Reload this AI's updated weights so future matches benefit
+                const learnRes = await fetch(`/api/ai-learning?personality=${personality}&difficulty=${difficulty}`);
+                if (learnRes.ok) {
+                    const learnData = await learnRes.json();
+                    aiLearningData[personality] = learnData.learningData || {};
+                }
+            }
+        } catch (err) {
+            console.error('Error saving tournament AI learning:', err);
+        }
+    }
+    aiMoveHistory = [];
+}
+
 function recordAndNextTournamentMatch(winnerSymbol) {
     if (!tournament.active || !tournament.currentMatchPlayers) return;
     const [player1, player2] = tournament.currentMatchPlayers;
     let matchWinner = null;
     if (winnerSymbol === 'X') matchWinner = player1.id;
     else if (winnerSymbol === 'O') matchWinner = player2.id;
+
+    // Save AI learning data for each AI player in this match
+    saveTournamentMatchAILearning(player1, player2, winnerSymbol);
 
     if (tournament.stage === 'tiebreaker') {
         const tb = tournament.pendingTiebreaker;
@@ -1562,6 +1631,9 @@ function runAIvsAIMove() {
         const aiMove = getTournamentAIMove(currentAIPlayer);
         if (!aiMove) return;
         const { largeIndex, smallIndex } = aiMove;
+        // Record move for AI learning
+        const score = evaluateUltimateMove(largeIndex, smallIndex, true);
+        recordAIMove(largeIndex, smallIndex, score, { largeBoard: [...largeBoard], smallBoards: smallBoards.map(a => [...a]) });
         smallBoards[largeIndex][smallIndex] = currentPlayer;
         const cell = document.querySelector(`.small-cell[data-large-index="${largeIndex}"][data-small-index="${smallIndex}"]`);
         if (cell) { cell.textContent = currentPlayer; cell.classList.add('taken'); }
@@ -1597,6 +1669,8 @@ function runAIvsAIMove() {
         if (gameOver) return;
         const move = getTournamentAIMove(currentAIPlayer);
         if (move === null) return;
+        // Record move for AI learning
+        recordAIMove(move, 0, 0, [...board]);
         board[move] = currentPlayer;
         const cells = document.querySelectorAll('#standard-board .cell');
         cells[move].textContent = currentPlayer;

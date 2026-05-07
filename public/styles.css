@@ -232,7 +232,12 @@ body {
   font-weight: bold;
   color: rgba(0, 0, 0, 0.7);
   pointer-events: none;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: transparent;
+}
+
+.large-cell-winner.taken,
+.large-cell-winner.draw {
+  background-color: rgba(255, 255, 255, 0.85);
 }
 
 .large-cell-winner.taken.X {
@@ -554,4 +559,139 @@ body {
   justify-content: center;
   font-size: 0.85rem;
   font-weight: bold;
+}
+
+/* ── Tournament Bracket ─────────────────────────────────────── */
+.bk-bracket {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    overflow-x: auto;
+    padding: 24px 16px 16px;
+    font-family: inherit;
+    background: #fafafa;
+    border-radius: 8px;
+}
+
+.bk-col {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+.bk-col + .bk-col {
+    margin-left: 0;
+}
+
+.bk-round-label {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    padding: 0 8px;
+}
+
+/* Each match: two stacked team rows + connector pipe */
+.bk-match {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.bk-team {
+    border: 1.5px solid #c0c0c0;
+    padding: 3px 8px;
+    font-size: 11.5px;
+    white-space: nowrap;
+    background: #fff;
+    width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.7;
+    color: #333;
+    box-sizing: border-box;
+}
+
+.bk-match .bk-team:first-child {
+    border-bottom: none;
+    border-radius: 2px 2px 0 0;
+}
+
+.bk-match .bk-team:last-child {
+    border-top: 1px solid #e0e0e0;
+    border-radius: 0 0 2px 2px;
+}
+
+.bk-winner {
+    background: #e8f5e9 !important;
+    font-weight: 700;
+    color: #2e7d32 !important;
+    border-color: #81c784 !important;
+}
+
+.bk-match.current .bk-team {
+    border-color: #1976d2 !important;
+    background: #e3f2fd;
+    color: #0d47a1;
+}
+
+.bk-match.current .bk-team.bk-winner {
+    background: #c8e6c9 !important;
+}
+
+.bk-final-match .bk-team {
+    width: 120px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-color: #999;
+}
+
+/* ── Horizontal connector stubs (drawn in JS via inline style) ── */
+/* Left-side matches: right stub */
+.bk-col-left .bk-match .bk-stub {
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    width: 20px;
+    height: 1.5px;
+    background: #bbb;
+    transform: translateY(-50%);
+}
+
+/* Right-side matches: left stub */
+.bk-col-right .bk-match .bk-stub {
+    position: absolute;
+    left: -20px;
+    top: 50%;
+    width: 20px;
+    height: 1.5px;
+    background: #bbb;
+    transform: translateY(-50%);
+}
+
+/* Vertical connector between two matches feeding into the next round */
+.bk-vline {
+    position: absolute;
+    width: 1.5px;
+    background: #bbb;
+    pointer-events: none;
+}
+
+/* Column gap wide enough for connector lines */
+.bk-col-left,
+.bk-col-right {
+    margin: 0 20px;
+}
+
+.bk-col-final {
+    margin: 0 20px;
 }

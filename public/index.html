@@ -173,6 +173,81 @@
             border-radius: 4px;
             border: 1px solid #ddd;
         }
+
+        /* ── New roster panel ── */
+        .tourn-roster-panel {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin: 10px 0;
+            background: #fff;
+        }
+        .tourn-roster-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .tourn-roster-counts {
+            font-size: 0.95em;
+            color: #555;
+            line-height: 1.5;
+        }
+        .tourn-roster-counts strong { color: #222; }
+        .tourn-add-player-btn {
+            background: #4a90e2;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 7px 14px;
+            font-size: 0.9em;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .tourn-add-player-btn:hover { background: #357abd; }
+        .tourn-add-player-btn:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+        .tourn-human-slots {
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .tourn-human-slot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #eaf3fb;
+            border: 1px solid #b8d4ec;
+            border-radius: 6px;
+            padding: 6px 10px;
+        }
+        .tourn-human-slot .slot-label {
+            font-weight: bold;
+            font-size: 0.88em;
+            color: #4a90e2;
+            white-space: nowrap;
+        }
+        .tourn-human-slot input[type="text"] {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px 8px;
+            font-size: 0.9em;
+        }
+        .tourn-human-slot .slot-remove {
+            background: none;
+            border: none;
+            color: #c0392b;
+            font-size: 1.1em;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+        .tourn-human-slot .slot-remove:hover { color: #922b21; }
         
         .tournament-winner {
             font-size: 1.5em;
@@ -309,59 +384,6 @@
             border-right: 10px solid transparent;
             border-bottom: 10px solid #ccc;
         }
-        
-        /* Tournament group and knockout styles */
-        .group-match {
-            padding: 8px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
-        }
-        
-        .group-match.current {
-            border-color: #007bff;
-            background: #e9ecef;
-        }
-        
-        .group-match.completed {
-            opacity: 0.7;
-        }
-        
-        .knockout-match {
-            padding: 10px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: white;
-        }
-        
-        .knockout-match.current {
-            border-color: #007bff;
-            background: #e9ecef;
-        }
-        
-        .knockout-match.completed {
-            opacity: 0.7;
-        }
-        
-        .match-players {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .match-result {
-            font-size: 12px;
-            color: #666;
-        }
-        
-        .knockout-round {
-            margin-bottom: 20px;
-            padding: 10px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
     </style>
 </head>
 <body>
@@ -417,11 +439,10 @@
                 <div class="tournament-option">
                     <label for="tournament-size">Tournament Size:</label>
                     <select id="tournament-size" onchange="updateTournamentUI()">
-                        <option value="2">2 Players</option>
                         <option value="4">4 Players</option>
                         <option value="8">8 Players</option>
                         <option value="16">16 Players</option>
-                        <option value="32">32 Players</option>
+                        <option value="32" selected>32 Players</option>
                         <option value="64">64 Players</option>
                         <option value="128">128 Players</option>
                         <option value="256">256 Players</option>
@@ -447,25 +468,24 @@
                 </div>
                 
                 <div class="tournament-option">
-                    <label for="tournament-ai-difficulty">AI Difficulty (Tournament):</label>
+                    <label for="tournament-ai-difficulty">AI Difficulty:</label>
                     <select id="tournament-ai-difficulty">
                         <option value="easy">Easy</option>
                         <option value="medium" selected>Medium</option>
                     </select>
                 </div>
-                
-                <div class="tournament-option">
-                    <label>
-                        <input type="checkbox" id="all-ai-checkbox" checked onchange="toggleAllAI()">
-                        All AI Tournament
-                    </label>
-                </div>
-                
-                <div class="tournament-option">
-                    <label>Players (AI/Human):</label>
-                    <div id="tournament-players-container">
-                        <!-- Player selectors will be added dynamically -->
+
+                <!-- Player composition panel -->
+                <div class="tourn-roster-panel">
+                    <div class="tourn-roster-header">
+                        <div class="tourn-roster-counts" id="tourn-roster-counts">
+                            <!-- filled by JS -->
+                        </div>
+                        <button class="tourn-add-player-btn" onclick="addHumanPlayerSlot()">+ Add Player</button>
                     </div>
+
+                    <!-- Human player name inputs (only shown when humans are added) -->
+                    <div id="tournament-human-slots" class="tourn-human-slots"></div>
                 </div>
                 
                 <button onclick="startTournament()" id="start-tournament-btn" style="display: none;">Start Tournament</button>

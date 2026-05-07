@@ -253,8 +253,8 @@ app.post('/api/games', (req, res) => {
         saveAIStats(aiStats);
     }
 
-    // CP10-c2: Process AI learning data for Ultimate AI mode
-    if (isAIGame && gameMode === 'ultimate-ai' && learningData) {
+    // CP10-c2: Process AI learning data for AI mode games
+    if (isAIGame && learningData) {
         processAILearning(learningData, req.session.username);
     }
 

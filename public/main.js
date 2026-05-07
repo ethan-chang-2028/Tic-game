@@ -265,10 +265,13 @@ function getHardMove(board) {
 }
 
 function getAIMove(board) {
-    const effectiveDifficulty = tournament.active ? tournament.aiDifficulty : aiDifficulty;
-    if (effectiveDifficulty === 'easy') return getRandomMove(board);
-    if (effectiveDifficulty === 'medium') return getMediumMove(board);
-    if (effectiveDifficulty === 'hard') return getHardMove(board);
+    let diff = aiDifficulty;
+    if (tournament.active && tournament.currentMatchAIPlayer) {
+        diff = tournament.currentMatchAIPlayer.difficulty || 'medium';
+    }
+    if (diff === 'easy') return getRandomMove(board);
+    if (diff === 'medium') return getMediumMove(board);
+    if (diff === 'hard') return getHardMove(board);
     return getRandomMove(board);
 }
 
@@ -292,6 +295,7 @@ function makeAIMove() {
                 setTimeout(() => recordAndNextTournamentMatch(winner), 1500);
             } else {
                 saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
+                setTimeout(() => resetGame(), 2000);
             }
         } else if (checkDraw(board)) {
             gameOver = true;
@@ -301,6 +305,7 @@ function makeAIMove() {
                 setTimeout(() => recordAndNextTournamentMatch(null), 1500);
             } else {
                 saveGame(null, 'draw');
+                setTimeout(() => resetGame(), 2000);
             }
         } else {
             currentPlayer = 'X';
@@ -439,13 +444,16 @@ function makeUltimateAIMove() {
         if (largeWinner) {
             ultimateGameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            const isAIWinner = (gameMode === 'ultimate-ai' || tournament.active) && largeWinner === 'O';
-            document.getElementById('game-status').textContent = isAIWinner ? getAIWinMessage() : getPlayerWinMessage();
             
             if (tournament.active) {
+                const [p1, p2] = tournament.currentMatchPlayers;
+                document.getElementById('game-status').textContent = `${largeWinner === 'X' ? p1.name : p2.name} wins!`;
                 setTimeout(() => recordAndNextTournamentMatch(largeWinner), 1500);
             } else {
+                const isAIWinner = gameMode === 'ultimate-ai' && largeWinner === 'O';
+                document.getElementById('game-status').textContent = isAIWinner ? getAIWinMessage() : getPlayerWinMessage();
                 saveGame(largeWinner, largeWinner === 'O' ? 'AI wins' : 'Player wins');
+                setTimeout(() => resetGame(), 2000);
             }
         } else if (isLargeBoardDrawn()) {
             ultimateGameOver = true;
@@ -456,6 +464,7 @@ function makeUltimateAIMove() {
                 setTimeout(() => recordAndNextTournamentMatch(null), 1500);
             } else {
                 saveGame(null, 'Ultimate Tic Tac Toe draw');
+                setTimeout(() => resetGame(), 2000);
             }
         } else {
             currentPlayer = 'X';
@@ -465,9 +474,23 @@ function makeUltimateAIMove() {
 }
 
 function handleSmallCellClick(e) {
-    if ((gameMode !== 'ultimate' && gameMode !== 'ultimate-ai') || ultimateGameOver) return;
-    if (gameMode === 'ultimate-ai' && currentPlayer === 'O') return;
-    if (tournament.active && tournament.currentMatchAIPlayer && currentPlayer === 'O') return;
+    if (ultimateGameOver) return;
+    // In tournament ultimate mode, allow clicks; block only if it's AI's turn
+    if (!tournament.active && (gameMode !== 'ultimate' && gameMode !== 'ultimate-ai')) return;
+    if (!tournament.active && gameMode === 'ultimate-ai' && currentPlayer === 'O') return;
+
+    if (tournament.active) {
+        // Block if AI vs AI (auto)
+        if (tournament.aiX && tournament.aiO) return;
+        // Block if it's the AI player's turn
+        const aiPlayer = tournament.currentMatchAIPlayer;
+        if (aiPlayer && tournament.currentMatchPlayers) {
+            const [p1, p2] = tournament.currentMatchPlayers;
+            const aiSymbol = aiPlayer === p1 ? 'X' : 'O';
+            if (currentPlayer === aiSymbol) return;
+        }
+    }
+
     const largeIndex = parseInt(e.target.getAttribute('data-large-index'));
     const smallIndex = parseInt(e.target.getAttribute('data-small-index'));
     if (isSmallBoardFinished(largeIndex) || smallBoards[largeIndex][smallIndex] !== '') return;
@@ -489,24 +512,55 @@ function handleSmallCellClick(e) {
     if (largeWinner) {
         ultimateGameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        const isAIWinner = gameMode === 'ultimate-ai' && largeWinner === 'O';
-        document.getElementById('game-status').textContent = isAIWinner ? getAIWinMessage() : getPlayerWinMessage();
-        saveGame(largeWinner, `${largeWinner} wins Ultimate Tic Tac Toe`);
+        if (tournament.active) {
+            const [p1, p2] = tournament.currentMatchPlayers;
+            document.getElementById('game-status').textContent = `${largeWinner === 'X' ? p1.name : p2.name} wins!`;
+            setTimeout(() => recordAndNextTournamentMatch(largeWinner), 1500);
+        } else {
+            const isAIWinner = gameMode === 'ultimate-ai' && largeWinner === 'O';
+            document.getElementById('game-status').textContent = isAIWinner ? getAIWinMessage() : getPlayerWinMessage();
+            saveGame(largeWinner, `${largeWinner} wins Ultimate Tic Tac Toe`);
+            setTimeout(() => resetGame(), 2000);
+        }
     } else if (isLargeBoardDrawn()) {
         ultimateGameOver = true;
         document.getElementById('turn-indicator').textContent = '';
-        document.getElementById('game-status').textContent = getRandomMessage('draw');
-        saveGame(null, 'Ultimate Tic Tac Toe draw');
+        if (tournament.active) {
+            document.getElementById('game-status').textContent = 'Draw!';
+            setTimeout(() => recordAndNextTournamentMatch(null), 1500);
+        } else {
+            document.getElementById('game-status').textContent = getRandomMessage('draw');
+            saveGame(null, 'Ultimate Tic Tac Toe draw');
+            setTimeout(() => resetGame(), 2000);
+        }
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O' ? getRandomMessage('thinking') : `Player ${currentPlayer}'s Turn (Any Board)`;
-        if (tournament.active && tournament.currentMatchAIPlayer && currentPlayer === 'O') setTimeout(makeUltimateAIMove, 1000);
+        if (tournament.active && tournament.currentMatchAIPlayer) {
+            const [p1, p2] = tournament.currentMatchPlayers;
+            const aiPlayer = tournament.currentMatchAIPlayer;
+            const aiSymbol = aiPlayer === p1 ? 'X' : 'O';
+            if (currentPlayer === aiSymbol) {
+                document.getElementById('turn-indicator').textContent = `${aiPlayer.name} thinking...`;
+                setTimeout(() => makeTournamentAIMove(aiPlayer), 600);
+            } else {
+                const humanName = currentPlayer === 'X' ? p1.name : p2.name;
+                document.getElementById('turn-indicator').textContent = `${humanName}'s Turn`;
+            }
+        } else if (!tournament.active) {
+            document.getElementById('turn-indicator').textContent = gameMode === 'ultimate-ai' && currentPlayer === 'O' ? getRandomMessage('thinking') : `Player ${currentPlayer}'s Turn (Any Board)`;
+            if (gameMode === 'ultimate-ai' && currentPlayer === 'O') setTimeout(makeUltimateAIMove, 600);
+        } else {
+            // Human vs human tournament ultimate
+            const [p1, p2] = tournament.currentMatchPlayers;
+            const name = currentPlayer === 'X' ? p1.name : p2.name;
+            document.getElementById('turn-indicator').textContent = `${name}'s Turn`;
+        }
     }
 }
 
 // ========== TOURNAMENT FUNCTIONS ==========
 function toggleAllAI() {
-    tournament.allAI = document.getElementById('all-ai-checkbox').checked;
+    tournament.allAI = document.getElementById('all-ai-checkbox')?.checked ?? true;
     updateTournamentUI();
 }
 
@@ -551,7 +605,8 @@ function updatePlayerType(index) {
     const someAreAI = Array.from(selects).some(s => s.value === 'ai');
     
     // Update the allAI checkbox
-    document.getElementById('all-ai-checkbox').checked = allAreAI;
+    const cb = document.getElementById('all-ai-checkbox');
+    if (cb) cb.checked = allAreAI;
     tournament.allAI = allAreAI;
 }
 
@@ -603,7 +658,7 @@ function startTournament() {
         type: type,
         gameType: gameType,
         aiDifficulty: aiDifficulty,
-        allAI: document.getElementById('all-ai-checkbox').checked,
+        allAI: document.getElementById('all-ai-checkbox')?.checked ?? true,
         stage: type === 'single_elimination' ? 'knockout' : 'group',
         players: players,
         groups: [],
@@ -635,33 +690,39 @@ function startTournament() {
 
 function generateSingleEliminationBracket() {
     const { players } = tournament;
-    let currentRoundPlayers = [...players];
     tournament.knockoutBracket = [];
-    
-    while (currentRoundPlayers.length > 1) {
-        const roundMatches = [];
-        for (let i = 0; i < currentRoundPlayers.length; i += 2) {
-            if (i + 1 < currentRoundPlayers.length) {
-                roundMatches.push({
-                    player1: currentRoundPlayers[i],
-                    player2: currentRoundPlayers[i + 1],
-                    winner: null,
-                    completed: false
-                });
-            } else {
-                // Bye for odd number of players
-                roundMatches.push({
-                    player1: currentRoundPlayers[i],
-                    player2: null,
-                    winner: currentRoundPlayers[i].id,
-                    completed: true
-                });
-            }
+
+    // Build first round with actual players
+    const firstRoundMatches = [];
+    for (let i = 0; i < players.length; i += 2) {
+        if (i + 1 < players.length) {
+            firstRoundMatches.push({
+                player1: players[i],
+                player2: players[i + 1],
+                winner: null,
+                completed: false
+            });
+        } else {
+            firstRoundMatches.push({
+                player1: players[i],
+                player2: null,
+                winner: players[i].id,
+                completed: true
+            });
         }
-        tournament.knockoutBracket.push(roundMatches);
-        currentRoundPlayers = roundMatches.map(m => 
-            m.completed && m.winner ? players.find(p => p.id === m.winner) : null
-        ).filter(p => p !== null);
+    }
+    tournament.knockoutBracket.push(firstRoundMatches);
+
+    // Pre-build all subsequent rounds as TBD slots
+    let prevRoundSize = firstRoundMatches.length;
+    while (prevRoundSize > 1) {
+        const nextSize = Math.ceil(prevRoundSize / 2);
+        const nextRound = [];
+        for (let i = 0; i < nextSize; i++) {
+            nextRound.push({ player1: null, player2: null, winner: null, completed: false });
+        }
+        tournament.knockoutBracket.push(nextRound);
+        prevRoundSize = nextSize;
     }
 }
 
@@ -711,30 +772,43 @@ function displayTournament() {
     const nextBtn = document.getElementById('next-match-btn');
     const endBtn = document.getElementById('end-tournament-btn');
     
-    document.getElementById('standard-board').style.display = 'none';
-    document.getElementById('ultimate-board').style.display = 'none';
+    // Always show tournament display panel
     document.getElementById('tournament-display').style.display = 'block';
     
     const gameTypeText = tournament.gameType === 'ultimate' ? 'Ultimate' : 'Standard';
     
-    if (tournament.stage === 'group') {
-        stageTitle.textContent = `Tournament - Group Stage (Group ${tournament.currentGroupIndex + 1}/${tournament.groups.length}) - ${gameTypeText} Mode`;
-        nextBtn.style.display = 'inline-block';
+    if (tournament.stage === 'finished') {
+        stageTitle.textContent = 'Tournament — Complete!';
+        nextBtn.style.display = 'none';
+        endBtn.style.display = 'inline-block';
+        // Hide game boards when tournament is over
+        document.getElementById('standard-board').style.display = 'none';
+        document.getElementById('ultimate-board').style.display = 'none';
+        bracketDiv.innerHTML = generateTournamentResultsHTML();
+        return;
+    }
+
+    // During active tournament: hide boards by default; startNextMatch shows correct one
+    if (tournament.stage === 'tiebreaker') {
+        const tb = tournament.pendingTiebreaker;
+        stageTitle.textContent = `Tiebreaker — Group ${tb ? tb.groupIndex + 1 : '?'} (${gameTypeText})`;
+        nextBtn.style.display = 'none';
+        endBtn.style.display = 'none';
+        bracketDiv.innerHTML = generateGroupStageHTML();
+    } else if (tournament.stage === 'group') {
+        stageTitle.textContent = `Group Stage — Group ${tournament.currentGroupIndex + 1} / ${tournament.groups.length} (${gameTypeText})`;
+        nextBtn.style.display = 'none'; // AI vs AI is automatic; button only for human matches
         endBtn.style.display = 'none';
         bracketDiv.innerHTML = generateGroupStageHTML();
     } else if (tournament.stage === 'knockout') {
+        const maxRounds = tournament.knockoutBracket.length;
+        const roundFromEnd = maxRounds - 1 - tournament.currentKnockoutRound;
         const roundNames = ['Final', 'Semifinals', 'Quarterfinals', 'Round of 16', 'Round of 32', 'Round of 64'];
-        const currentRound = tournament.currentKnockoutRound;
-        const roundName = roundNames[currentRound] || `Round ${tournament.knockoutBracket.length - currentRound}`;
-        stageTitle.textContent = `Tournament - ${roundName} - ${gameTypeText} Mode`;
-        nextBtn.style.display = 'inline-block';
+        const roundName = roundNames[roundFromEnd] || `Round ${tournament.currentKnockoutRound + 1}`;
+        stageTitle.textContent = `Knockout — ${roundName} (${gameTypeText})`;
+        nextBtn.style.display = 'none';
         endBtn.style.display = 'none';
         bracketDiv.innerHTML = generateKnockoutBracketHTML();
-    } else {
-        stageTitle.textContent = 'Tournament - Completed';
-        nextBtn.style.display = 'none';
-        endBtn.style.display = 'inline-block';
-        bracketDiv.innerHTML = generateTournamentResultsHTML();
     }
 }
 
@@ -758,8 +832,8 @@ function generateGroupStageHTML() {
             sortedResults.forEach((result, idx) => {
                 const playerObj = gGroup.players.find(p => p.id === result.id);
                 const aiIndicator = playerObj?.type === 'ai' ? 'AI' : 'Human';
-                const aiDetails = playerObj?.type === 'ai' ? ` (${playerObj.difficulty}, ${playerObj.personality})` : '';
-                html += `<tr><td>${idx + 1}</td><td>${result.name}${aiDetails}</td><td>${aiIndicator}</td><td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td></tr>`;
+                const aiDetails = '';
+                html += `<tr><td>${idx + 1}</td><td>${result.name}</td><td>${aiIndicator}</td><td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td></tr>`;
             });
             html += '</table>';
         }
@@ -780,8 +854,8 @@ function generateGroupStageHTML() {
         const isCurrent = idx === tournament.currentGroupMatch;
         const resultText = match.completed ? (match.winner === null ? 'Draw' : (match.winner === match.player1 ? 'W' : 'L')) : '';
         
-        const p1Details = player1.type === 'ai' ? ` (${player1.difficulty}, ${player1.personality})` : '';
-        const p2Details = player2.type === 'ai' ? ` (${player2.difficulty}, ${player2.personality})` : '';
+        const p1Details = '';
+        const p2Details = '';
         
         html += `<tr class="${isCurrent ? 'current-match' : ''}">`;
         html += `<td>${idx + 1}</td>`;
@@ -798,106 +872,104 @@ function generateGroupStageHTML() {
     return html;
 }
 
-// IMPROVED: Generate proper bracket visualization like the image
 function generateKnockoutBracketHTML() {
     const bracket = tournament.knockoutBracket;
     const currentRound = tournament.currentKnockoutRound;
     const currentMatch = tournament.currentKnockoutMatch;
-    
-    // Calculate max rounds for spacing
-    const maxRounds = bracket.length;
-    
-    let html = '<div class="bracket-round-container">';
-    
-    // Create bracket for each round
-    for (let round = 0; round < maxRounds; round++) {
-        const roundMatches = bracket[round];
-        const roundNames = ['Final', 'Semifinals', 'Quarterfinals', 'Round of 16', 'Round of 32', 'Round of 64'];
-        const roundName = roundNames[round] || `Round ${maxRounds - round}`;
-        
-        html += `<div class="round-column">`;
-        html += `<div class="round-header">${roundName}</div>`;
-        
-        // Add matches for this round
-        for (let matchIdx = 0; matchIdx < roundMatches.length; matchIdx++) {
-            const match = roundMatches[matchIdx];
-            const isCurrent = round === currentRound && matchIdx === currentMatch;
-            
-            // Get player objects
-            let player1 = null, player2 = null;
-            if (match.player1) {
-                player1 = typeof match.player1 === 'object' ? match.player1 : tournament.players.find(p => p.id === match.player1);
-            }
-            if (match.player2) {
-                player2 = typeof match.player2 === 'object' ? match.player2 : tournament.players.find(p => p.id === match.player2);
-            }
-            
-            const isWinner1 = match.completed && match.winner === match.player1?.id;
-            const isWinner2 = match.completed && match.winner === match.player2?.id;
-            
-            // Add connector from previous round (except first round)
-            if (round > 0) {
-                html += '<div class="connector-line"></div>';
-            }
-            
-            // Match card
-            html += `<div class="match-card ${isCurrent ? 'current' : ''} ${match.completed ? 'completed' : ''}">`;
-            
-            // Team 1
-            if (player1) {
-                const aiDetails1 = player1.type === 'ai' ? ` (${player1.difficulty}, ${player1.personality})` : '';
-                html += `<div class="team-name ${isWinner1 ? 'winner' : ''} ${player1.type === 'ai' ? 'ai' : ''}">
-                    👤 ${player1.name}${aiDetails1}${isCurrent ? ' *' : ''}
-                </div>`;
-            } else {
-                html += `<div class="team-name">TBD</div>`;
-            }
-            
-            // VS
-            html += `<div class="match-vs">vs</div>`;
-            
-            // Team 2
-            if (player2) {
-                const aiDetails2 = player2.type === 'ai' ? ` (${player2.difficulty}, ${player2.personality})` : '';
-                html += `<div class="team-name ${isWinner2 ? 'winner' : ''} ${player2?.type === 'ai' ? 'ai' : ''}">
-                    👤 ${player2.name}${aiDetails2}${isCurrent ? ' *' : ''}
-                </div>`;
-            } else {
-                html += `<div class="team-name">TBD</div>`;
-            }
-            
-            // Result
-            const resultText = match.completed ? (match.winner === null ? 'Draw' : '') : '';
-            html += `<div class="match-result">${resultText}</div>`;
-            
-            html += `</div>`;
-            
-            // Add connector to next match (except last in round)
-            if (matchIdx < roundMatches.length - 1) {
-                html += '<div class="connector-line"></div>';
-            }
-        }
-        
-        html += '</div>';
+    const totalRounds = bracket.length;
+    const numSideRounds = totalRounds - 1;
+
+    // Each match box is 2 rows of ~22px = 44px total, plus 2px border
+    const MATCH_H = 46;
+    const BASE_GAP = 10; // gap between matches in round 0
+
+    // Gap between consecutive matches in round r
+    function gapForRound(r) {
+        if (r === 0) return BASE_GAP;
+        return (MATCH_H + gapForRound(r - 1)) * 2 - MATCH_H;
     }
-    
-    html += '</div>';
-    
-    return html;
+
+    // Top offset for first match in round r so it aligns with its two source matches
+    function topOffsetForRound(r) {
+        if (r === 0) return 0;
+        const prevGap = gapForRound(r - 1);
+        return topOffsetForRound(r - 1) + (MATCH_H + prevGap) / 2;
+    }
+
+    function getName(p) {
+        if (!p) return 'TBD';
+        const o = typeof p === 'object' ? p : tournament.players.find(x => x.id === p);
+        return o ? o.name : 'TBD';
+    }
+    function getObj(p) {
+        if (!p) return null;
+        return typeof p === 'object' ? p : tournament.players.find(x => x.id === p);
+    }
+    function won(match, slot) {
+        if (!match.completed) return false;
+        const p = slot === 1 ? match.player1 : match.player2;
+        const o = getObj(p);
+        return o && match.winner === o.id;
+    }
+
+    function renderMatch(match, rIdx, mIdx, isFinal) {
+        const isCur = rIdx === currentRound && mIdx === currentMatch;
+        const w1 = won(match, 1), w2 = won(match, 2);
+        const cls = ['bk-match', isFinal ? 'bk-final-match' : '', isCur ? 'current' : '', match.completed ? 'completed' : ''].filter(Boolean).join(' ');
+        const stub = isFinal ? '' : '<div class="bk-stub"></div>';
+        return `<div class="${cls}">
+            <div class="bk-team${w1 ? ' bk-winner' : ''}">${getName(match.player1)}</div>
+            <div class="bk-team${w2 ? ' bk-winner' : ''}">${getName(match.player2)}</div>
+            ${stub}
+        </div>`;
+    }
+
+    const roundLabels = ['Round of 64', 'Round of 32', 'Round of 16', 'Quarterfinals', 'Semifinals'];
+
+    function buildCol(roundIdx, side) {
+        const roundMatches = bracket[roundIdx];
+        const half = Math.ceil(roundMatches.length / 2);
+        const matches = side === 'left' ? roundMatches.slice(0, half) : roundMatches.slice(half);
+        const topOff = topOffsetForRound(roundIdx);
+        const gap = gapForRound(roundIdx);
+        const li = Math.max(0, roundLabels.length - numSideRounds + roundIdx);
+        const label = roundLabels[li] || `Round ${roundIdx + 1}`;
+
+        let inner = '';
+        matches.forEach((m, i) => {
+            const globalIdx = side === 'left' ? i : half + i;
+            const mt = i === 0 ? topOff : gap;
+            inner += `<div style="margin-top:${mt}px">${renderMatch(m, roundIdx, globalIdx, false)}</div>`;
+        });
+        return `<div class="bk-col bk-col-${side}"><div class="bk-round-label">${label}</div>${inner}</div>`;
+    }
+
+    let leftHTML = '';
+    for (let r = 0; r < numSideRounds; r++) leftHTML += buildCol(r, 'left');
+
+    let rightHTML = '';
+    for (let r = numSideRounds - 1; r >= 0; r--) rightHTML += buildCol(r, 'right');
+
+    const fm = bracket[totalRounds - 1]?.[0];
+    const finalTopOff = topOffsetForRound(numSideRounds);
+    const finalHTML = fm ? `<div class="bk-col bk-col-final">
+        <div class="bk-round-label">Final</div>
+        <div style="margin-top:${finalTopOff}px">${renderMatch(fm, totalRounds - 1, 0, true)}</div>
+    </div>` : '';
+
+    return `<div class="bk-bracket">${leftHTML}${finalHTML}${rightHTML}</div>`;
 }
 
 function generateTournamentResultsHTML() {
-    let html = '<div class="tournament-results"><h3>Tournament Final Results</h3>';
+    let html = '<div class="tournament-results"><h3>🏆 Tournament Final Results</h3>';
     const winner = tournament.players.find(p => p.wins === Math.max(...tournament.players.map(p => p.wins)));
     if (winner) {
-        const aiDetails = winner.type === 'ai' ? ` (${winner.difficulty}, ${winner.personality})` : '';
-        html += `<div class="tournament-winner">🏆 <strong>${winner.name}${aiDetails}</strong> is the Tournament Champion! 🏆</div>`;
+        html += `<div class="tournament-winner">🏆 <strong>${winner.name}</strong> is the Tournament Champion! 🏆</div>`;
     }
-    html += '<table class="final-standings"><tr><th>Rank</th><th>Player</th><th>Type</th><th>Settings</th><th>Wins</th><th>Losses</th><th>Draws</th><th>Points</th></tr>';
+    html += '<table class="final-standings"><tr><th>Rank</th><th>Player</th><th>Type</th><th>Wins</th><th>Losses</th><th>Draws</th><th>Points</th></tr>';
     const sortedPlayers = [...tournament.players].sort((a, b) => b.points - a.points || b.wins - a.wins);
     sortedPlayers.forEach((player, idx) => {
-        const aiDetails = player.type === 'ai' ? `${player.difficulty}, ${player.personality}` : '-';
-        html += `<tr><td>${idx + 1}</td><td>${player.name}</td><td>${player.type === 'ai' ? 'AI' : 'Human'}</td><td>${aiDetails}</td><td>${player.wins}</td><td>${player.losses}</td><td>${player.draws}</td><td>${player.points}</td></tr>`;
+        html += `<tr><td>${idx + 1}</td><td>${player.name}</td><td>${player.type === 'ai' ? 'AI' : 'Human'}</td><td>${player.wins}</td><td>${player.losses}</td><td>${player.draws}</td><td>${player.points}</td></tr>`;
     });
     html += '</table></div>';
     return html;
@@ -909,8 +981,34 @@ function recordAndNextTournamentMatch(winnerSymbol) {
     let matchWinner = null;
     if (winnerSymbol === 'X') matchWinner = player1.id;
     else if (winnerSymbol === 'O') matchWinner = player2.id;
-    
-    if (tournament.stage === 'group') {
+
+    if (tournament.stage === 'tiebreaker') {
+        const tb = tournament.pendingTiebreaker;
+        if (!tb) return;
+        const match = tb.matches[tb.matchIndex];
+        match.completed = true;
+        match.winner = matchWinner;
+
+        if (matchWinner === null) {
+            // Draw in tiebreaker = rematch
+            match.completed = false;
+            match.winner = null;
+            player1.draws++; player2.draws++;
+            tournament.aiX = null; tournament.aiO = null;
+            displayTournament();
+            setTimeout(() => startTiebreakerMatch(), 500);
+            return;
+        }
+
+        tb.scores[matchWinner] = (tb.scores[matchWinner] || 0) + 1;
+        if (matchWinner === player1.id) { player1.wins++; player2.losses++; }
+        else { player2.wins++; player1.losses++; }
+        tb.matchIndex++;
+        tournament.aiX = null; tournament.aiO = null;
+        displayTournament();
+        setTimeout(() => startTiebreakerMatch(), 400);
+        return;
+    } else if (tournament.stage === 'group') {
         const group = tournament.groups[tournament.currentGroupIndex];
         const currentMatch = group.matches[tournament.currentGroupMatch];
         currentMatch.winner = matchWinner; 
@@ -947,28 +1045,38 @@ function recordAndNextTournamentMatch(winnerSymbol) {
     } else if (tournament.stage === 'knockout') {
         const roundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound];
         const currentMatch = roundMatches[tournament.currentKnockoutMatch];
-        currentMatch.winner = matchWinner; 
+
+        // Draw in knockout = rematch: reset the match and replay it
+        if (matchWinner === null) {
+            currentMatch.winner = null;
+            currentMatch.completed = false;
+            player1.draws++;
+            player2.draws++;
+            displayTournament();
+            // Restart the same match
+            if (tournament.stage === 'knockout') startNextKnockoutMatch();
+            return;
+        }
+
+        currentMatch.winner = matchWinner;
         currentMatch.completed = true;
         
         if (matchWinner === player1.id) {
             player1.wins++; player2.losses++;
-        } else if (matchWinner === player2.id) {
-            player2.wins++; player1.losses++;
         } else {
-            player1.draws++; player2.draws++;
+            player2.wins++; player1.losses++;
         }
         
-        if (matchWinner) {
-            const winnerPlayer = matchWinner === player1.id ? player1 : player2;
-            if (tournament.currentKnockoutRound + 1 < tournament.knockoutBracket.length) {
-                const nextRoundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound + 1];
-                const nextMatchIndex = Math.floor(tournament.currentKnockoutMatch / 2);
-                if (nextRoundMatches[nextMatchIndex]) {
-                    if (tournament.currentKnockoutMatch % 2 === 0) {
-                        nextRoundMatches[nextMatchIndex].player1 = winnerPlayer;
-                    } else {
-                        nextRoundMatches[nextMatchIndex].player2 = winnerPlayer;
-                    }
+        // Advance winner to pre-created TBD slot in next round
+        const winnerPlayer = matchWinner === player1.id ? player1 : player2;
+        if (tournament.currentKnockoutRound + 1 < tournament.knockoutBracket.length) {
+            const nextRoundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound + 1];
+            const nextMatchIndex = Math.floor(tournament.currentKnockoutMatch / 2);
+            if (nextRoundMatches[nextMatchIndex]) {
+                if (tournament.currentKnockoutMatch % 2 === 0) {
+                    nextRoundMatches[nextMatchIndex].player1 = winnerPlayer;
+                } else {
+                    nextRoundMatches[nextMatchIndex].player2 = winnerPlayer;
                 }
             }
         }
@@ -976,17 +1084,19 @@ function recordAndNextTournamentMatch(winnerSymbol) {
     }
     
     displayTournament();
-    if (tournament.stage === 'group') startNextGroupMatch();
+    if (tournament.stage === 'tiebreaker') startTiebreakerMatch();
+    else if (tournament.stage === 'group') startNextGroupMatch();
     else if (tournament.stage === 'knockout') startNextKnockoutMatch();
 }
 
 function startNextTournamentMatch() {
-    if (tournament.stage === 'group') startNextGroupMatch();
+    if (tournament.stage === 'tiebreaker') startTiebreakerMatch();
+    else if (tournament.stage === 'group') startNextGroupMatch();
     else if (tournament.stage === 'knockout') startNextKnockoutMatch();
 }
 
 function startNextGroupMatch() {
-    const group = tournament.groups[tournament.currentGroupIndex];
+    let group = tournament.groups[tournament.currentGroupIndex];
     const completedMatches = group.matches.filter(m => m.completed).length;
     if (completedMatches >= group.matches.length) {
         tournament.currentGroupIndex++;
@@ -995,51 +1105,179 @@ function startNextGroupMatch() {
             return; 
         }
         tournament.currentGroupMatch = 0;
+        group = tournament.groups[tournament.currentGroupIndex];
     }
     const currentMatch = group.matches[tournament.currentGroupMatch];
-    if (!currentMatch) { 
-        alert('No more matches in this group!'); 
-        return; 
-    }
+    if (!currentMatch) return;
+
     const player1 = group.players.find(p => p.id === currentMatch.player1);
     const player2 = group.players.find(p => p.id === currentMatch.player2);
     tournament.currentMatchPlayers = [player1, player2];
-    
+
+    // Reset game state
+    board = ['', '', '', '', '', '', '', '', ''];
+    currentPlayer = 'X';
+    gameOver = false;
+
     if (tournament.gameType === 'ultimate') {
-        gameMode = 'ultimate';
         largeBoard = ['', '', '', '', '', '', '', '', ''];
         smallBoards = Array(9).fill().map(() => Array(9).fill(''));
         ultimateGameOver = false;
+        document.getElementById('standard-board').style.display = 'none';
+        document.getElementById('ultimate-board').style.display = 'block';
     } else {
-        gameMode = 'pvp';
+        document.getElementById('standard-board').style.display = 'grid';
+        document.getElementById('ultimate-board').style.display = 'none';
     }
-    board = ['', '', '', '', '', '', '', '', '']; 
-    currentPlayer = 'X'; 
-    gameOver = false;
-    
+
+    // Reset cell UI
+    document.querySelectorAll('#standard-board .cell').forEach(c => { c.textContent = ''; c.className = 'cell'; });
+
+    const bothAI = player1.type === 'ai' && player2.type === 'ai';
+    const p1IsAI = player1.type === 'ai';
+    const p2IsAI = player2.type === 'ai';
+
     tournament.currentMatchAIPlayer = null;
-    if (player1.type === 'ai' && player2.type === 'ai') {
-        tournament.currentMatchAIPlayer = Math.random() < 0.5 ? player1 : player2;
-        currentPlayer = tournament.currentMatchAIPlayer === player1 ? 'O' : 'X';
-    } else if (player1.type === 'ai') {
+
+    if (bothAI) {
+        // AI vs AI: fully automatic, X goes first (player1 is X-side AI)
+        tournament.currentMatchAIPlayer = player1; // tracks "the AI that moves as O"
+        // We run both sides: player1 plays as X-AI, player2 as O-AI
+        // Use a flag to alternate who is "the current AI"
+        tournament.aiX = player1;
+        tournament.aiO = player2;
+        currentPlayer = 'X';
+        document.getElementById('turn-indicator').textContent = `${player1.name} vs ${player2.name} (Auto)`;
+        document.getElementById('game-status').textContent = `Group: ${player1.name} vs ${player2.name}`;
+        displayTournament();
+        setTimeout(() => runAIvsAIMove(), 400);
+    } else if (p1IsAI) {
+        // AI is player1 = X side; AI moves first
         tournament.currentMatchAIPlayer = player1;
         currentPlayer = 'X';
-    } else if (player2.type === 'ai') {
+        document.getElementById('turn-indicator').textContent = `${player2.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Group: ${player1.name} vs ${player2.name}`;
+        displayTournament();
+        setTimeout(() => makeTournamentAIMove(player1), 500);
+    } else if (p2IsAI) {
+        // AI is player2 = O side; human goes first
         tournament.currentMatchAIPlayer = player2;
         currentPlayer = 'X';
-    }
-    
-    if (tournament.currentMatchAIPlayer) {
-        const humanPlayer = tournament.currentMatchAIPlayer === player1 ? player2 : player1;
-        document.getElementById('turn-indicator').textContent = humanPlayer ? `${humanPlayer.name}'s Turn` : '';
+        document.getElementById('turn-indicator').textContent = `${player1.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Group: ${player1.name} vs ${player2.name}`;
+        displayTournament();
     } else {
-        document.getElementById('turn-indicator').textContent = player1 ? `${player1.name}'s Turn` : '';
+        // Human vs Human
+        tournament.currentMatchAIPlayer = null;
+        document.getElementById('turn-indicator').textContent = `${player1.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Group: ${player1.name} vs ${player2.name}`;
+        displayTournament();
     }
-    
-    const p1Details = player1.type === 'ai' ? ` (${player1.difficulty}, ${player1.personality})` : '';
-    const p2Details = player2.type === 'ai' ? ` (${player2.difficulty}, ${player2.personality})` : '';
-    document.getElementById('game-status').textContent = `Group Stage: ${player1.name}${p1Details} vs ${player2.name}${p2Details}`;
-    
+}
+
+function advanceToKnockoutStage() {
+    const tw = tournament.tiebreakerWinners || {};
+
+    // Check if any group still needs a tiebreaker
+    for (let g = 0; g < tournament.groups.length; g++) {
+        if (tw[g]) continue; // already resolved
+
+        const groupResults = tournament.groupResults[g] || [];
+        const sorted = [...groupResults].sort((a, b) => b.points - a.points);
+        if (sorted.length < 2) continue;
+
+        const secondPoints = sorted[1].points;
+        const tiedFor2nd = sorted.filter((r, i) => i >= 1 && r.points === secondPoints);
+
+        if (tiedFor2nd.length > 1) {
+            tournament.pendingTiebreaker = {
+                groupIndex: g,
+                tiedPlayers: tiedFor2nd.map(r => tournament.players.find(p => p.id === r.id)).filter(Boolean),
+                tiedPlayerIndex: 0
+            };
+            startTiebreakerMatch();
+            return;
+        }
+    }
+
+    // All tiebreakers resolved — pick top 2 from each group
+    const advancingPlayers = [];
+    for (let g = 0; g < tournament.groups.length; g++) {
+        if (tw[g]) {
+            // Use tiebreaker-determined advancement order
+            tw[g].forEach(id => {
+                const p = tournament.players.find(x => x.id === id);
+                if (p) advancingPlayers.push(p);
+            });
+        } else {
+            const groupResults = tournament.groupResults[g] || [];
+            const sorted = [...groupResults].sort((a, b) => b.points - a.points);
+            sorted.slice(0, 2).forEach(result => {
+                const p = tournament.players.find(x => x.id === result.id);
+                if (p) advancingPlayers.push(p);
+            });
+        }
+    }
+
+    buildKnockoutBracket(advancingPlayers);
+}
+
+function startTiebreakerMatch() {
+    const tb = tournament.pendingTiebreaker;
+    if (!tb) return;
+
+    const players = tb.tiedPlayers;
+    // Round-robin among tied players: play every combination
+    // Build remaining tiebreaker matches if not built yet
+    if (!tb.matches) {
+        tb.matches = [];
+        for (let i = 0; i < players.length; i++) {
+            for (let j = i + 1; j < players.length; j++) {
+                tb.matches.push({ p1: players[i], p2: players[j], winner: null, completed: false });
+            }
+        }
+        tb.matchIndex = 0;
+        tb.scores = {};
+        players.forEach(p => { tb.scores[p.id] = 0; });
+    }
+
+    // Find next incomplete match
+    while (tb.matchIndex < tb.matches.length && tb.matches[tb.matchIndex].completed) {
+        tb.matchIndex++;
+    }
+
+    if (tb.matchIndex >= tb.matches.length) {
+        // All tiebreaker matches done — pick winner by score, then continue
+        const tbWinner = players.sort((a, b) => (tb.scores[b.id] || 0) - (tb.scores[a.id] || 0))[0];
+        // Replace the tied 2nd-place slot with the tiebreaker winner
+        const g = tb.groupIndex;
+        const groupResults = tournament.groupResults[g];
+        const sorted = [...groupResults].sort((a, b) => b.points - a.points);
+        const firstId = sorted[0].id;
+        // Rebuild sorted top-2 forcing tbWinner into 2nd
+        tournament.pendingTiebreaker = null;
+        tournament.tiebreakerWinners = tournament.tiebreakerWinners || {};
+        tournament.tiebreakerWinners[g] = [firstId, tbWinner.id];
+        advanceToKnockoutStage();
+        return;
+    }
+
+    const match = tb.matches[tb.matchIndex];
+    tournament.currentMatchPlayers = [match.p1, match.p2];
+    tournament.stage = 'tiebreaker';
+
+    document.getElementById('game-status').textContent =
+        `Tiebreaker (Group ${tb.groupIndex + 1}): ${match.p1.name} vs ${match.p2.name}`;
+
+    // Reset board and start match
+    board = ['', '', '', '', '', '', '', '', ''];
+    currentPlayer = 'X';
+    gameOver = false;
+    largeBoard = ['', '', '', '', '', '', '', '', ''];
+    smallBoards = Array(9).fill().map(() => Array(9).fill(''));
+    ultimateGameOver = false;
+    document.querySelectorAll('#standard-board .cell').forEach(c => { c.textContent = ''; c.className = 'cell'; });
+
     if (tournament.gameType === 'ultimate') {
         document.getElementById('standard-board').style.display = 'none';
         document.getElementById('ultimate-board').style.display = 'block';
@@ -1047,47 +1285,75 @@ function startNextGroupMatch() {
         document.getElementById('standard-board').style.display = 'grid';
         document.getElementById('ultimate-board').style.display = 'none';
     }
-    
-    if (player1.type === 'ai' && player2.type === 'ai') {
-        tournament.currentMatchAIPlayer = player1;
-        currentPlayer = 'O';
-        document.getElementById('turn-indicator').textContent = `${player1.name} (AI) thinking...`;
-        setTimeout(() => {
-            if (tournament.gameType === 'ultimate') makeUltimateAIMove();
-            else makeAIMove();
-        }, 500);
+
+    const p1 = match.p1, p2 = match.p2;
+    const bothAI = p1.type === 'ai' && p2.type === 'ai';
+
+    if (bothAI) {
+        tournament.aiX = p1;
+        tournament.aiO = p2;
+        tournament.currentMatchAIPlayer = null;
+        document.getElementById('turn-indicator').textContent = `${p1.name} vs ${p2.name} (Tiebreaker)`;
+        displayTournament();
+        setTimeout(() => runAIvsAIMove(), 400);
+    } else if (p1.type === 'ai') {
+        tournament.currentMatchAIPlayer = p1;
+        tournament.aiX = null; tournament.aiO = null;
+        document.getElementById('turn-indicator').textContent = `${p2.name}'s Turn`;
+        displayTournament();
+        setTimeout(() => makeTournamentAIMove(p1), 500);
+    } else if (p2.type === 'ai') {
+        tournament.currentMatchAIPlayer = p2;
+        tournament.aiX = null; tournament.aiO = null;
+        document.getElementById('turn-indicator').textContent = `${p1.name}'s Turn`;
+        displayTournament();
+    } else {
+        tournament.currentMatchAIPlayer = null;
+        tournament.aiX = null; tournament.aiO = null;
+        document.getElementById('turn-indicator').textContent = `${p1.name}'s Turn`;
+        displayTournament();
     }
-    
-    displayTournament();
 }
 
-function advanceToKnockoutStage() {
-    const advancingPlayers = [];
-    for (let g = 0; g < tournament.groups.length; g++) {
-        const groupResults = tournament.groupResults[g] || [];
-        const sorted = [...groupResults].sort((a, b) => b.points - a.points);
-        advancingPlayers.push(...sorted.slice(0, 2));
-    }
+function buildKnockoutBracket(advancingPlayers) {
     tournament.knockoutBracket = [];
     tournament.stage = 'knockout';
     tournament.currentKnockoutRound = 0;
     tournament.currentKnockoutMatch = 0;
     
     let currentRoundPlayers = [...advancingPlayers];
-    while (currentRoundPlayers.length > 1) {
-        const roundMatches = [];
-        for (let i = 0; i < currentRoundPlayers.length; i += 2) {
-            if (i + 1 < currentRoundPlayers.length) {
-                roundMatches.push({
-                    player1: currentRoundPlayers[i],
-                    player2: currentRoundPlayers[i + 1],
-                    winner: null,
-                    completed: false
-                });
-            }
+    // Build first round with actual players
+    const firstRoundMatches = [];
+    for (let i = 0; i < currentRoundPlayers.length; i += 2) {
+        if (i + 1 < currentRoundPlayers.length) {
+            firstRoundMatches.push({
+                player1: currentRoundPlayers[i],
+                player2: currentRoundPlayers[i + 1],
+                winner: null,
+                completed: false
+            });
+        } else {
+            // Bye - odd player advances automatically
+            firstRoundMatches.push({
+                player1: currentRoundPlayers[i],
+                player2: null,
+                winner: currentRoundPlayers[i].id,
+                completed: true
+            });
         }
-        tournament.knockoutBracket.push(roundMatches);
-        currentRoundPlayers = roundMatches.map(m => null);
+    }
+    tournament.knockoutBracket.push(firstRoundMatches);
+
+    // Pre-build all subsequent rounds as TBD slots so the bracket renders fully
+    let prevRoundSize = firstRoundMatches.length;
+    while (prevRoundSize > 1) {
+        const nextSize = Math.ceil(prevRoundSize / 2);
+        const nextRound = [];
+        for (let i = 0; i < nextSize; i++) {
+            nextRound.push({ player1: null, player2: null, winner: null, completed: false });
+        }
+        tournament.knockoutBracket.push(nextRound);
+        prevRoundSize = nextSize;
     }
     
     startNextKnockoutMatch();
@@ -1116,73 +1382,243 @@ function startNextKnockoutMatch() {
     }
     
     const currentMatch = roundMatches[tournament.currentKnockoutMatch];
-    const player1 = currentMatch.player1;
-    const player2 = currentMatch.player2;
-    
-    const player1Obj = typeof player1 === 'object' ? player1 : tournament.players.find(p => p.id === player1);
-    const player2Obj = typeof player2 === 'object' ? player2 : tournament.players.find(p => p.id === player2);
-    
-    tournament.currentMatchPlayers = [player1Obj, player2Obj];
-    
-    if (tournament.gameType === 'ultimate') {
-        gameMode = 'ultimate';
-        largeBoard = ['', '', '', '', '', '', '', '', ''];
-        smallBoards = Array(9).fill().map(() => Array(9).fill(''));
-        ultimateGameOver = false;
-    } else {
-        gameMode = 'pvp';
+    const player1Obj = typeof currentMatch.player1 === 'object' ? currentMatch.player1 : tournament.players.find(p => p.id === currentMatch.player1);
+    const player2Obj = typeof currentMatch.player2 === 'object' ? currentMatch.player2 : tournament.players.find(p => p.id === currentMatch.player2);
+
+    if (!player1Obj || !player2Obj) {
+        // Players not yet determined — wait
+        displayTournament();
+        return;
     }
-    
+
+    tournament.currentMatchPlayers = [player1Obj, player2Obj];
+
+    // Reset game state
     board = ['', '', '', '', '', '', '', '', ''];
     currentPlayer = 'X';
     gameOver = false;
-    
-    tournament.currentMatchAIPlayer = null;
-    if (player1Obj && player2Obj) {
-        if (player1Obj.type === 'ai' && player2Obj.type === 'ai') {
-            tournament.currentMatchAIPlayer = Math.random() < 0.5 ? player1Obj : player2Obj;
-            currentPlayer = tournament.currentMatchAIPlayer === player1Obj ? 'O' : 'X';
-        } else if (player1Obj.type === 'ai') {
-            tournament.currentMatchAIPlayer = player1Obj;
-            currentPlayer = 'X';
-        } else if (player2Obj.type === 'ai') {
-            tournament.currentMatchAIPlayer = player2Obj;
-            currentPlayer = 'X';
-        }
-    }
-    
-    if (player1Obj && player2Obj) {
-        if (tournament.currentMatchAIPlayer) {
-            const humanPlayer = tournament.currentMatchAIPlayer === player1Obj ? player2Obj : player1Obj;
-            document.getElementById('turn-indicator').textContent = humanPlayer ? `${humanPlayer.name}'s Turn` : '';
-        } else {
-            document.getElementById('turn-indicator').textContent = player1Obj ? `${player1Obj.name}'s Turn` : '';
-        }
-        
-        const p1Details = player1Obj.type === 'ai' ? ` (${player1Obj.difficulty}, ${player1Obj.personality})` : '';
-        const p2Details = player2Obj.type === 'ai' ? ` (${player2Obj.difficulty}, ${player2Obj.personality})` : '';
-        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name}${p1Details} vs ${player2Obj.name}${p2Details}`;
-    }
-    
+
     if (tournament.gameType === 'ultimate') {
+        largeBoard = ['', '', '', '', '', '', '', '', ''];
+        smallBoards = Array(9).fill().map(() => Array(9).fill(''));
+        ultimateGameOver = false;
         document.getElementById('standard-board').style.display = 'none';
         document.getElementById('ultimate-board').style.display = 'block';
     } else {
         document.getElementById('standard-board').style.display = 'grid';
         document.getElementById('ultimate-board').style.display = 'none';
     }
-    
-    if (player1Obj && player2Obj && player1Obj.type === 'ai' && player2Obj.type === 'ai') {
+
+    // Reset cell UI
+    document.querySelectorAll('#standard-board .cell').forEach(c => { c.textContent = ''; c.className = 'cell'; });
+
+    const bothAI = player1Obj.type === 'ai' && player2Obj.type === 'ai';
+    const p1IsAI = player1Obj.type === 'ai';
+    const p2IsAI = player2Obj.type === 'ai';
+
+    tournament.currentMatchAIPlayer = null;
+
+    if (bothAI) {
+        tournament.aiX = player1Obj;
+        tournament.aiO = player2Obj;
+        currentPlayer = 'X';
+        document.getElementById('turn-indicator').textContent = `${player1Obj.name} vs ${player2Obj.name} (Auto)`;
+        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
+        displayTournament();
+        setTimeout(() => runAIvsAIMove(), 400);
+    } else if (p1IsAI) {
         tournament.currentMatchAIPlayer = player1Obj;
-        currentPlayer = 'O';
-        document.getElementById('turn-indicator').textContent = `${player1Obj.name} (AI) thinking...`;
-        setTimeout(() => {
-            if (tournament.gameType === 'ultimate') makeUltimateAIMove();
-            else makeAIMove();
-        }, 500);
+        currentPlayer = 'X';
+        document.getElementById('turn-indicator').textContent = `${player2Obj.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
+        displayTournament();
+        setTimeout(() => makeTournamentAIMove(player1Obj), 500);
+    } else if (p2IsAI) {
+        tournament.currentMatchAIPlayer = player2Obj;
+        currentPlayer = 'X';
+        document.getElementById('turn-indicator').textContent = `${player1Obj.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
+        displayTournament();
+    } else {
+        tournament.currentMatchAIPlayer = null;
+        document.getElementById('turn-indicator').textContent = `${player1Obj.name}'s Turn`;
+        document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
+        displayTournament();
     }
-    
-    displayTournament();
+}
+
+// Get AI move using a specific player's difficulty (for per-player difficulty in AI vs AI)
+function getTournamentAIMove(player) {
+    const diff = player.difficulty || 'medium';
+    if (tournament.gameType === 'ultimate') {
+        // Temporarily use this player's personality
+        const saved = aiPersonality;
+        aiPersonality = player.personality || 'neutral';
+        const move = getUltimateAIMove();
+        aiPersonality = saved;
+        return move;
+    } else {
+        if (diff === 'easy') return getRandomMove(board);
+        if (diff === 'medium') return getMediumMove(board);
+        if (diff === 'hard') return getHardMove(board);
+        return getRandomMove(board);
+    }
+}
+
+// AI vs AI: runs one move for the current player, then schedules the other
+function runAIvsAIMove() {
+    if (!tournament.active || !tournament.currentMatchPlayers) return;
+    const [player1, player2] = tournament.currentMatchPlayers;
+    // player1 = X side, player2 = O side
+    const currentAIPlayer = currentPlayer === 'X' ? tournament.aiX : tournament.aiO;
+
+    if (tournament.gameType === 'ultimate') {
+        if (ultimateGameOver) return;
+        const aiMove = getTournamentAIMove(currentAIPlayer);
+        if (!aiMove) return;
+        const { largeIndex, smallIndex } = aiMove;
+        smallBoards[largeIndex][smallIndex] = currentPlayer;
+        const cell = document.querySelector(`.small-cell[data-large-index="${largeIndex}"][data-small-index="${smallIndex}"]`);
+        if (cell) { cell.textContent = currentPlayer; cell.classList.add('taken'); }
+
+        const smallWinner = checkSmallBoardWinner(largeIndex);
+        if (smallWinner) {
+            largeBoard[largeIndex] = smallWinner;
+            const lc = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+            if (lc) { lc.textContent = smallWinner; lc.classList.add('taken'); }
+            highlightWinner('small', largeIndex);
+        } else if (isSmallBoardDrawn(largeIndex)) {
+            largeBoard[largeIndex] = 'draw';
+            const lc = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+            if (lc) { lc.textContent = 'Draw'; lc.classList.add('draw'); }
+        }
+
+        const largeWinner = checkLargeBoardWinner();
+        if (largeWinner) {
+            ultimateGameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            const winner = largeWinner === 'X' ? player1 : player2;
+            document.getElementById('game-status').textContent = `${winner.name} wins!`;
+            setTimeout(() => recordAndNextTournamentMatch(largeWinner), 1200);
+            return;
+        } else if (isLargeBoardDrawn()) {
+            ultimateGameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = 'Draw!';
+            setTimeout(() => recordAndNextTournamentMatch(null), 1200);
+            return;
+        }
+    } else {
+        if (gameOver) return;
+        const move = getTournamentAIMove(currentAIPlayer);
+        if (move === null) return;
+        board[move] = currentPlayer;
+        const cells = document.querySelectorAll('#standard-board .cell');
+        cells[move].textContent = currentPlayer;
+        cells[move].classList.add('taken');
+
+        const winner = checkWinner(board);
+        if (winner) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            const winnerPlayer = winner === 'X' ? player1 : player2;
+            document.getElementById('game-status').textContent = `${winnerPlayer.name} wins!`;
+            highlightWinner('standard');
+            setTimeout(() => recordAndNextTournamentMatch(winner), 1200);
+            return;
+        } else if (checkDraw(board)) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = 'Draw!';
+            setTimeout(() => recordAndNextTournamentMatch(null), 1200);
+            return;
+        }
+    }
+
+    // Switch player and schedule next move
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    const nextAI = currentPlayer === 'X' ? tournament.aiX : tournament.aiO;
+    document.getElementById('turn-indicator').textContent = `${nextAI.name} thinking...`;
+    setTimeout(() => runAIvsAIMove(), 300);
+}
+
+// AI move for human-vs-AI tournament matches, using the AI player's own difficulty/personality
+function makeTournamentAIMove(aiPlayer) {
+    if (!tournament.active) return;
+
+    if (tournament.gameType === 'ultimate') {
+        if (ultimateGameOver) return;
+        const aiMove = getTournamentAIMove(aiPlayer);
+        if (!aiMove) return;
+        const { largeIndex, smallIndex } = aiMove;
+        const symbol = currentPlayer; // AI plays as currentPlayer (O if p2 is AI, X if p1 is AI)
+        smallBoards[largeIndex][smallIndex] = symbol;
+        const cell = document.querySelector(`.small-cell[data-large-index="${largeIndex}"][data-small-index="${smallIndex}"]`);
+        if (cell) { cell.textContent = symbol; cell.classList.add('taken'); }
+
+        const smallWinner = checkSmallBoardWinner(largeIndex);
+        if (smallWinner) {
+            largeBoard[largeIndex] = smallWinner;
+            const lc = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+            if (lc) { lc.textContent = smallWinner; lc.classList.add('taken'); }
+            highlightWinner('small', largeIndex);
+        } else if (isSmallBoardDrawn(largeIndex)) {
+            largeBoard[largeIndex] = 'draw';
+            const lc = document.querySelector(`.large-cell[data-large-index="${largeIndex}"] .large-cell-winner`);
+            if (lc) { lc.textContent = 'Draw'; lc.classList.add('draw'); }
+        }
+
+        const [p1, p2] = tournament.currentMatchPlayers;
+        const largeWinner = checkLargeBoardWinner();
+        if (largeWinner) {
+            ultimateGameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = `${largeWinner === 'X' ? p1.name : p2.name} wins!`;
+            setTimeout(() => recordAndNextTournamentMatch(largeWinner), 1500);
+        } else if (isLargeBoardDrawn()) {
+            ultimateGameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = 'Draw!';
+            setTimeout(() => recordAndNextTournamentMatch(null), 1500);
+        } else {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            const [p1, p2] = tournament.currentMatchPlayers;
+            const humanName = aiPlayer === p1 ? p2.name : p1.name;
+            document.getElementById('turn-indicator').textContent = `${humanName}'s Turn`;
+        }
+    } else {
+        if (gameOver) return;
+        const move = getTournamentAIMove(aiPlayer);
+        if (move === null) return;
+        const symbol = currentPlayer;
+        board[move] = symbol;
+        const cells = document.querySelectorAll('#standard-board .cell');
+        cells[move].textContent = symbol;
+        cells[move].classList.add('taken');
+
+        const [p1, p2] = tournament.currentMatchPlayers;
+        const winner = checkWinner(board);
+        if (winner) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = `${winner === 'X' ? p1.name : p2.name} wins!`;
+            highlightWinner('standard');
+            setTimeout(() => recordAndNextTournamentMatch(winner), 1500);
+        } else if (checkDraw(board)) {
+            gameOver = true;
+            document.getElementById('turn-indicator').textContent = '';
+            document.getElementById('game-status').textContent = 'Draw!';
+            setTimeout(() => recordAndNextTournamentMatch(null), 1500);
+        } else {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            const humanName = aiPlayer === p1 ? p2.name : p1.name;
+            document.getElementById('turn-indicator').textContent = `${humanName}'s Turn`;
+        }
+    }
+}
+
+function nextTournamentMatch() {
+    startNextTournamentMatch();
 }
 
 function endTournament() {
@@ -1204,12 +1640,17 @@ function endTournament() {
         currentKnockoutMatch: 0,
         matchHistory: [],
         currentMatchPlayers: null,
-        currentMatchAIPlayer: null
+        currentMatchAIPlayer: null,
+        aiX: null,
+        aiO: null,
+        pendingTiebreaker: null,
+        tiebreakerWinners: {}
     };
     
     document.getElementById('tournament-display').style.display = 'none';
     document.getElementById('tournament-settings').style.display = 'none';
     document.getElementById('standard-board').style.display = 'grid';
+    document.getElementById('ultimate-board').style.display = 'none';
     
     gameMode = 'pvp';
     document.getElementById('game-mode').value = 'pvp';
@@ -1223,7 +1664,15 @@ function handleCellClick(e) {
     if (tournament.active) {
         const index = parseInt(e.target.getAttribute('data-index'));
         if (board[index] !== '' || gameOver) return;
-        if (tournament.currentMatchAIPlayer && currentPlayer === 'O') return;
+
+        // Block clicks if it's an AI turn or an AI vs AI match
+        const isAIvsAI = tournament.aiX && tournament.aiO;
+        if (isAIvsAI) return; // fully automatic
+        const aiPlayer = tournament.currentMatchAIPlayer;
+        const [p1, p2] = tournament.currentMatchPlayers;
+        // Determine which symbol the AI plays
+        const aiSymbol = aiPlayer === p1 ? 'X' : 'O';
+        if (aiPlayer && currentPlayer === aiSymbol) return;
         
         board[index] = currentPlayer;
         e.target.textContent = currentPlayer;
@@ -1233,8 +1682,7 @@ function handleCellClick(e) {
         if (winner) {
             gameOver = true;
             document.getElementById('turn-indicator').textContent = '';
-            const [player1, player2] = tournament.currentMatchPlayers;
-            document.getElementById('game-status').textContent = `${winner === 'X' ? player1.name : player2.name} wins!`;
+            document.getElementById('game-status').textContent = `${winner === 'X' ? p1.name : p2.name} wins!`;
             highlightWinner('standard');
             setTimeout(() => recordAndNextTournamentMatch(winner), 1500);
         } else if (checkDraw(board)) {
@@ -1244,13 +1692,12 @@ function handleCellClick(e) {
             setTimeout(() => recordAndNextTournamentMatch(null), 1500);
         } else {
             currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-            const [player1, player2] = tournament.currentMatchPlayers;
-            if (tournament.currentMatchAIPlayer && currentPlayer === 'O') {
-                if (tournament.gameType === 'ultimate') setTimeout(makeUltimateAIMove, 1000);
-                else setTimeout(makeAIMove, 500);
+            if (aiPlayer && currentPlayer === aiSymbol) {
+                document.getElementById('turn-indicator').textContent = `${aiPlayer.name} thinking...`;
+                setTimeout(() => makeTournamentAIMove(aiPlayer), 500);
             } else {
-                const currentPlayerName = currentPlayer === 'X' ? player1.name : player2.name;
-                document.getElementById('turn-indicator').textContent = `${currentPlayerName}'s Turn`;
+                const humanName = currentPlayer === 'X' ? p1.name : p2.name;
+                document.getElementById('turn-indicator').textContent = `${humanName}'s Turn`;
             }
         }
         return;
@@ -1271,11 +1718,13 @@ function handleCellClick(e) {
         document.getElementById('game-status').textContent = isAIWinner ? getAIWinMessage() : getPlayerWinMessage();
         highlightWinner('standard');
         saveGame(winner, winner === 'O' ? 'AI wins' : 'Player wins');
+        setTimeout(() => resetGame(), 2000);
     } else if (checkDraw(board)) {
         gameOver = true;
         document.getElementById('turn-indicator').textContent = '';
         document.getElementById('game-status').textContent = getRandomMessage('draw');
         saveGame(null, 'draw');
+        setTimeout(() => resetGame(), 2000);
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
         document.getElementById('turn-indicator').textContent = gameMode === 'ai' 
@@ -1688,7 +2137,7 @@ function toggleGameMode() {
             type: document.getElementById('tournament-type').value || 'group_knockout',
             gameType: document.getElementById('tournament-game-type').value || 'standard',
             aiDifficulty: document.getElementById('tournament-ai-difficulty').value || 'medium',
-            allAI: document.getElementById('all-ai-checkbox').checked,
+            allAI: document.getElementById('all-ai-checkbox')?.checked ?? true,
             stage: 'setup',
             players: [],
             groups: [],
@@ -1723,7 +2172,18 @@ function setAIPersonality() {
 }
 
 function resetGame() {
-    board = ['', '', '', '', '', '', '', '', '', '']; 
+    // If a tournament is active, abort it cleanly
+    if (tournament.active) {
+        tournament.active = false;
+        tournament.aiX = null;
+        tournament.aiO = null;
+        tournament.currentMatchPlayers = null;
+        tournament.currentMatchAIPlayer = null;
+        tournament.stage = 'setup';
+        document.getElementById('tournament-display').style.display = 'none';
+    }
+
+    board = ['', '', '', '', '', '', '', '', '']; // exactly 9
     currentPlayer = 'X'; 
     gameOver = false; 
     ultimateGameOver = false;
@@ -1750,11 +2210,24 @@ function resetGame() {
         cell.classList.remove('active'); 
     });
 
-    document.getElementById('turn-indicator').textContent = gameMode === 'ai' 
-        ? getRandomMessage('turn') 
-        : (gameMode === 'ultimate' || gameMode === 'ultimate-ai') 
-            ? "Player X's Turn (Any Board)" 
-            : "Player X's Turn";
+    // Show/hide the correct board for the current mode
+    const standardBoard = document.getElementById('standard-board');
+    const ultimateBoard = document.getElementById('ultimate-board');
+    if (gameMode === 'ultimate' || gameMode === 'ultimate-ai') {
+        standardBoard.style.display = 'none';
+        ultimateBoard.style.display = 'block';
+    } else if (gameMode === 'tournament') {
+        standardBoard.style.display = 'none';
+        ultimateBoard.style.display = 'none';
+    } else {
+        standardBoard.style.display = 'grid';
+        ultimateBoard.style.display = 'none';
+    }
+
+    document.getElementById('turn-indicator').textContent = 
+        (gameMode === 'ai') ? getRandomMessage('turn') 
+        : (gameMode === 'ultimate' || gameMode === 'ultimate-ai') ? "Player X's Turn (Any Board)" 
+        : "Player X's Turn";
     
     document.getElementById('game-status').textContent = '';
     aiMoveHistory = [];

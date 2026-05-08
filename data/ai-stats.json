@@ -2,13 +2,13 @@
   "medium-neutral": {
     "wins": 37,
     "losses": 51,
-    "draws": 254,
+    "draws": 261,
     "difficulty": "medium",
     "personality": "neutral"
   },
   "easy-neutral": {
     "wins": 69,
-    "losses": 111,
+    "losses": 115,
     "draws": 17,
     "difficulty": "easy",
     "personality": "neutral"
@@ -29,7 +29,7 @@
   },
   "easy-psychologist": {
     "wins": 47,
-    "losses": 91,
+    "losses": 93,
     "draws": 18,
     "difficulty": "easy",
     "personality": "psychologist"
@@ -37,13 +37,13 @@
   "medium-mathematician": {
     "wins": 40,
     "losses": 49,
-    "draws": 208,
+    "draws": 211,
     "difficulty": "medium",
     "personality": "mathematician"
   },
   "easy-mathematician": {
     "wins": 56,
-    "losses": 107,
+    "losses": 109,
     "draws": 16,
     "difficulty": "easy",
     "personality": "mathematician"
@@ -51,7 +51,7 @@
   "medium-psychologist": {
     "wins": 37,
     "losses": 44,
-    "draws": 196,
+    "draws": 198,
     "difficulty": "medium",
     "personality": "psychologist"
   }

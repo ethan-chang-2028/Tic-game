@@ -261,7 +261,7 @@ function getMediumMove(board) {
 
 function getHardMove(board) {
     let bestScore = -Infinity;
-    let bestMoves = [];
+    let bestMove = null;
     for (let i = 0; i < board.length; i++) {
         if (board[i] === '') {
             board[i] = 'O';
@@ -269,14 +269,11 @@ function getHardMove(board) {
             board[i] = '';
             if (score > bestScore) {
                 bestScore = score;
-                bestMoves = [i];
-            } else if (score === bestScore) {
-                bestMoves.push(i);
+                bestMove = i;
             }
         }
     }
-    // Pick randomly among all equally-best moves to avoid repetitive play
-    return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+    return bestMove;
 }
 
 function getAIMove(board) {
@@ -397,14 +394,11 @@ function getUltimateAIMove() {
     if (effectiveDifficulty === 'easy') {
         return availableMoves[Math.floor(Math.random() * availableMoves.length)];
     }
-    let bestMoves = [], bestScore = -Infinity;
+    let bestMove = null, bestScore = -Infinity;
     for (const move of availableMoves) {
         const score = evaluateUltimateMove(move.largeIndex, move.smallIndex, true);
-        if (score > bestScore) { bestScore = score; bestMoves = [move]; }
-        else if (score === bestScore) { bestMoves.push(move); }
+        if (score > bestScore) { bestScore = score; bestMove = move; }
     }
-    // Pick randomly among all equally-good moves so the AI doesn't repeat the same play
-    let bestMove = bestMoves[Math.floor(Math.random() * bestMoves.length)];
     let randomness = 0.2;
     if (personality === 'mathematician') randomness = 0.1;
     if (personality === 'psychologist') randomness = 0.3;
@@ -942,11 +936,8 @@ function generateGroupStageHTML() {
         html += '<tr><th>Match</th><th>Player 1</th><th>vs</th><th>Player 2</th><th>Result</th></tr>';
         tbMatches.forEach((match, idx) => {
             const isCurrent = idx === tournament.pendingTiebreaker.matchIndex;
-            const winnerName = match.winner === null ? null
-                : (typeof match.winner === 'object' ? match.winner.name
-                    : (tournament.players.find(p => p.id === match.winner)?.name || 'Unknown'));
             const resultText = match.completed
-                ? (match.winner === null ? 'Draw' : winnerName + ' wins')
+                ? (match.winner === null ? 'Draw' : match.winner.name + ' wins')
                 : (isCurrent ? '▶ Playing' : '');
             html += `<tr class="${isCurrent ? 'current-match' : ''}">`;
             html += `<td>${idx + 1}</td>`;
@@ -968,12 +959,7 @@ function generateGroupStageHTML() {
         const player2 = group.players.find(p => p.id === match.player2);
         const isCurrent = idx === tournament.currentGroupMatch;
         const resultText = match.completed
-            ? (match.winner === null ? '🤝 Draw'
-                : (() => {
-                    const winnerId = match.winner;
-                    const winnerObj = group.players.find(p => p.id === winnerId);
-                    return winnerObj ? `✅ ${winnerObj.name}` : '✅ Win';
-                })())
+            ? (match.winner === null ? 'Draw' : (match.winner === match.player1 ? 'W' : 'L'))
             : '';
         
         const p1Details = '';
@@ -1323,21 +1309,20 @@ function recordAndNextTournamentMatch(winnerSymbol) {
             match.drawCount = (match.drawCount || 0) + 1;
 
             if (match.drawCount < 2) {
-                // First draw — one rematch allowed; keep matchIndex pointing to same match
+                // First draw — one rematch allowed, do NOT mutate master player stats
                 match.completed = false;
                 match.winner = null;
                 tournament.aiX = null; tournament.aiO = null;
                 displayTournament();
-                // Re-start THIS match (do not advance matchIndex)
                 setTimeout(() => startTiebreakerMatch(), 500);
                 return;
             }
 
-            // Second draw — mark as completed draw (no score awarded), advance past it
+            // Second draw — count this match as a completed draw (no tiebreaker score awarded)
+            // Do NOT mutate master player wins/losses/draws for tiebreaker matches
             match.completed = true;
             match.winner = null;
-            // matchIndex is advanced here; startTiebreakerMatch will find next incomplete match
-            tb.matchIndex++;
+            tb.matchIndex++; // ← CRITICAL: advance past this match to prevent infinite loop
             tournament.aiX = null; tournament.aiO = null;
             displayTournament();
             setTimeout(() => startTiebreakerMatch(), 500);
@@ -1490,21 +1475,14 @@ function startNextTournamentMatch() {
 
 function startNextGroupMatch() {
     let group = tournament.groups[tournament.currentGroupIndex];
-
-    // Skip past any already-completed matches
-    while (tournament.currentGroupMatch < group.matches.length &&
-           group.matches[tournament.currentGroupMatch].completed) {
-        tournament.currentGroupMatch++;
-    }
-
-    if (tournament.currentGroupMatch >= group.matches.length) {
-        // All matches in this group are done — move to the next group
+    const completedMatches = group.matches.filter(m => m.completed).length;
+    if (completedMatches >= group.matches.length) {
         tournament.currentGroupIndex++;
-        tournament.currentGroupMatch = 0;
-        if (tournament.currentGroupIndex >= tournament.groups.length) {
-            advanceToKnockoutStage();
-            return;
+        if (tournament.currentGroupIndex >= tournament.groups.length) { 
+            advanceToKnockoutStage(); 
+            return; 
         }
+        tournament.currentGroupMatch = 0;
         group = tournament.groups[tournament.currentGroupIndex];
     }
     const currentMatch = group.matches[tournament.currentGroupMatch];
@@ -1512,13 +1490,6 @@ function startNextGroupMatch() {
 
     const player1 = group.players.find(p => p.id === currentMatch.player1);
     const player2 = group.players.find(p => p.id === currentMatch.player2);
-    if (!player1 || !player2) {
-        // Players not found — mark match completed and skip
-        currentMatch.completed = true;
-        tournament.currentGroupMatch++;
-        startNextGroupMatch();
-        return;
-    }
     tournament.currentMatchPlayers = [player1, player2];
 
     // Reset game state
@@ -1671,7 +1642,7 @@ function startTiebreakerMatch() {
         }
     }
 
-    // Find next incomplete match, starting from current matchIndex
+    // Find next incomplete match
     while (tb.matchIndex < tb.matches.length && tb.matches[tb.matchIndex].completed) {
         tb.matchIndex++;
     }

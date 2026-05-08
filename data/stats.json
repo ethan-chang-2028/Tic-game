@@ -21,9 +21,9 @@
       "draws": 0
     },
     "ai": {
-      "wins": 451,
-      "losses": 276,
-      "draws": 726
+      "wins": 511,
+      "losses": 330,
+      "draws": 828
     },
     "ultimate": {
       "wins": 0,
@@ -31,9 +31,9 @@
       "draws": 0
     },
     "ultimate-ai": {
-      "wins": 6,
-      "losses": 4,
-      "draws": 4
+      "wins": 104,
+      "losses": 52,
+      "draws": 28
     }
   }
 }

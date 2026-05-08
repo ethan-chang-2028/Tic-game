@@ -132,8 +132,8 @@ body {
 }
 
 .cell.winner {
-  background-color: #e0e0e0;
-  border-color: #666;
+  background-color: #90ee90;
+  border-color: #2e7d32;
 }
 
 /* ── Ultimate Tic Tac Toe Board ── */
@@ -167,8 +167,10 @@ body {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
-.large-cell.winner-X, .large-cell.winner-O, .large-cell.draw {
-  border-color: #666;
+.large-cell.winner-X,
+.large-cell.winner-O,
+.large-cell.draw {
+  border-color: #2e7d32;
 }
 
 .small-board {
@@ -199,7 +201,7 @@ body {
 }
 
 .small-cell.winner {
-  background-color: #e0e0e0;
+  background-color: rgba(144, 238, 144, 0.5);
 }
 
 .large-cell-winner {
@@ -218,12 +220,14 @@ body {
   background-color: transparent;
 }
 
-.large-cell-winner.taken, .large-cell-winner.draw {
+.large-cell-winner.taken,
+.large-cell-winner.draw {
   background-color: rgba(255, 255, 255, 0.85);
 }
 
-.large-cell-winner.taken.X, .large-cell-winner.taken.O {
-  color: #333;
+.large-cell-winner.taken.X,
+.large-cell-winner.taken.O {
+  color: #2e7d32;
 }
 
 .large-cell-winner.draw {

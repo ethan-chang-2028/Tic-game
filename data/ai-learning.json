@@ -3,8 +3,8 @@
     "user": "1",
     "personality": "psychologist",
     "patternWeights": {
-      "winSmallBoard": 2239819,
-      "blockSmallBoard": 1707093063,
+      "winSmallBoard": 2330307,
+      "blockSmallBoard": 1776059622,
       "winLargeBoard": 99441,
       "blockLargeBoard": 151599496,
       "centerSmall": 5,
@@ -12,17 +12,17 @@
       "centerLarge": 5,
       "cornerLarge": 3
     },
-    "gamesPlayed": 435,
+    "gamesPlayed": 437,
     "wins": 116,
     "losses": 101,
-    "draws": 218
+    "draws": 220
   },
   "1-mathematician": {
     "user": "1",
     "personality": "mathematician",
     "patternWeights": {
-      "winSmallBoard": 7305373,
-      "blockSmallBoard": 10315258174,
+      "winSmallBoard": 7752520,
+      "blockSmallBoard": 10946634496,
       "winLargeBoard": 136513,
       "blockLargeBoard": 1357467744,
       "centerSmall": 1412,
@@ -30,10 +30,10 @@
       "centerLarge": 1412,
       "cornerLarge": 15
     },
-    "gamesPlayed": 486,
+    "gamesPlayed": 489,
     "wins": 132,
     "losses": 124,
-    "draws": 230
+    "draws": 233
   },
   "1-neutral": {
     "user": "1",

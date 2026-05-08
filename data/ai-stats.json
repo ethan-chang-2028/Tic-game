@@ -37,7 +37,7 @@
   "medium-mathematician": {
     "wins": 40,
     "losses": 49,
-    "draws": 216,
+    "draws": 219,
     "difficulty": "medium",
     "personality": "mathematician"
   },
@@ -51,7 +51,7 @@
   "medium-psychologist": {
     "wins": 37,
     "losses": 44,
-    "draws": 204,
+    "draws": 206,
     "difficulty": "medium",
     "personality": "psychologist"
   }

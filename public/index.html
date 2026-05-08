@@ -6,8 +6,6 @@
     <title>Ultimate Tic Tac Toe</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        /* All tournament/group-stage/bracket styles live in styles.css.
-           Only local micro-overrides below. */
         #all-ai-checkbox { margin-bottom: 10px; }
     </style>
 </head>
@@ -81,13 +79,9 @@
                         <option value="16">16 Players</option>
                         <option value="32" selected>32 Players</option>
                         <option value="64">64 Players</option>
-                        <option value="128">128 Players</option>
-                        <option value="256">256 Players</option>
-                        <option value="512">512 Players</option>
-                        <option value="1024">1024 Players</option>
                     </select>
                 </div>
-                
+
                 <div class="tournament-option">
                     <label for="tournament-type">Tournament Type:</label>
                     <select id="tournament-type">
@@ -95,7 +89,7 @@
                         <option value="single_elimination">Single Elimination</option>
                     </select>
                 </div>
-                
+
                 <div class="tournament-option">
                     <label for="tournament-game-type">Game Type:</label>
                     <select id="tournament-game-type">
@@ -103,7 +97,7 @@
                         <option value="ultimate">Ultimate Tic Tac Toe</option>
                     </select>
                 </div>
-                
+
                 <div class="tournament-option">
                     <label for="tournament-ai-difficulty">AI Difficulty:</label>
                     <select id="tournament-ai-difficulty">
@@ -115,16 +109,12 @@
                 <!-- Player composition panel -->
                 <div class="tourn-roster-panel">
                     <div class="tourn-roster-header">
-                        <div class="tourn-roster-counts" id="tourn-roster-counts">
-                            <!-- filled by JS -->
-                        </div>
+                        <div class="tourn-roster-counts" id="tourn-roster-counts"></div>
                         <button class="tourn-add-player-btn" onclick="addHumanPlayerSlot()">+ Add Player</button>
                     </div>
-
-                    <!-- Human player name inputs (only shown when humans are added) -->
                     <div id="tournament-human-slots" class="tourn-human-slots"></div>
                 </div>
-                
+
                 <button onclick="startTournament()" id="start-tournament-btn" style="display: none;">Start Tournament</button>
             </div>
         </div>
@@ -140,7 +130,7 @@
             <button onclick="endTournament()" id="end-tournament-btn" style="display: none;">End Tournament</button>
         </div>
 
-        <!-- Standard Tic Tac Toe Board (for PvP and AI modes) -->
+        <!-- Standard Board -->
         <div id="standard-board" class="board">
             <div class="cell" data-index="0"></div>
             <div class="cell" data-index="1"></div>
@@ -153,10 +143,9 @@
             <div class="cell" data-index="8"></div>
         </div>
 
-        <!-- Ultimate Tic Tac Toe Board (3x3 grid of 3x3 boards) -->
+        <!-- Ultimate Board -->
         <div id="ultimate-board" style="display: none;">
             <div class="ultimate-grid">
-                <!-- Large board cells (each contains a small board) -->
                 <div class="large-cell" data-large-index="0">
                     <div class="small-board" data-large-index="0">
                         <div class="small-cell" data-large-index="0" data-small-index="0"></div>
@@ -292,14 +281,12 @@
 
         <!-- ── Stats Tab ── -->
         <div id="main-tab-stats" class="main-tab-panel" style="display:none">
-        <!-- CP08-stats: Global Stats and Leaderboards -->
         <div id="CP08-stats">
             <div class="stats-header">
                 <h2>📊 Game Statistics</h2>
                 <button id="refresh-stats-btn" onclick="refreshAllStats()">↻ Refresh Stats</button>
             </div>
-            
-            <!-- Player Global Stats -->
+
             <section id="global-stats-section">
                 <h3>Your Global Stats</h3>
                 <div id="global-stats-container">
@@ -312,7 +299,6 @@
                 </div>
             </section>
 
-            <!-- Stats by Difficulty -->
             <section id="stats-section">
                 <h3>Your Stats by Difficulty</h3>
                 <div id="stats-container">
@@ -340,19 +326,14 @@
                 </div>
             </section>
 
-            <!-- Player Leaderboard (Separated by Game Mode) -->
             <section id="leaderboard-by-mode-section">
                 <h3>🏆 Player Leaderboard (By Game Mode)</h3>
                 <div id="leaderboard-by-mode-container">
                     <table id="leaderboard-by-mode-table">
                         <thead>
                             <tr>
-                                <th>Rank</th>
-                                <th>Player</th>
-                                <th>Game Mode</th>
-                                <th>Total Wins</th>
-                                <th>Total Games</th>
-                                <th>Win Rate</th>
+                                <th>Rank</th><th>Player</th><th>Game Mode</th>
+                                <th>Total Wins</th><th>Total Games</th><th>Win Rate</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-by-mode-body">
@@ -362,18 +343,14 @@
                 </div>
             </section>
 
-            <!-- Player Leaderboard (Combined) -->
             <section id="leaderboard-section">
                 <h3>🏆 Player Leaderboard (All Modes Combined)</h3>
                 <div id="leaderboard-container">
                     <table id="leaderboard-table">
                         <thead>
                             <tr>
-                                <th>Rank</th>
-                                <th>Player</th>
-                                <th>Total Wins</th>
-                                <th>Total Games</th>
-                                <th>Win Rate</th>
+                                <th>Rank</th><th>Player</th>
+                                <th>Total Wins</th><th>Total Games</th><th>Win Rate</th>
                             </tr>
                         </thead>
                         <tbody id="leaderboard-body">
@@ -383,7 +360,6 @@
                 </div>
             </section>
 
-            <!-- AI Global Stats -->
             <section id="ai-global-stats-section">
                 <h3>AI Global Stats</h3>
                 <div id="ai-global-stats-container">
@@ -396,20 +372,14 @@
                 </div>
             </section>
 
-            <!-- AI Leaderboard (Separated by Game Mode) -->
             <section id="ai-leaderboard-by-mode-section">
                 <h3>🤖 AI Leaderboard (By Game Mode)</h3>
                 <div id="ai-leaderboard-by-mode-container">
                     <table id="ai-leaderboard-by-mode-table">
                         <thead>
                             <tr>
-                                <th>Rank</th>
-                                <th>Difficulty</th>
-                                <th>Personality</th>
-                                <th>Game Mode</th>
-                                <th>Total Wins</th>
-                                <th>Total Games</th>
-                                <th>Win Rate</th>
+                                <th>Rank</th><th>Difficulty</th><th>Personality</th><th>Game Mode</th>
+                                <th>Total Wins</th><th>Total Games</th><th>Win Rate</th>
                             </tr>
                         </thead>
                         <tbody id="ai-leaderboard-by-mode-body">
@@ -419,19 +389,14 @@
                 </div>
             </section>
 
-            <!-- AI Leaderboard (Combined) -->
             <section id="ai-leaderboard-section">
                 <h3>🤖 AI Leaderboard (All Modes Combined)</h3>
                 <div id="ai-leaderboard-container">
                     <table id="ai-leaderboard-table">
                         <thead>
                             <tr>
-                                <th>Rank</th>
-                                <th>Difficulty</th>
-                                <th>Personality</th>
-                                <th>Total Wins</th>
-                                <th>Total Games</th>
-                                <th>Win Rate</th>
+                                <th>Rank</th><th>Difficulty</th><th>Personality</th>
+                                <th>Total Wins</th><th>Total Games</th><th>Win Rate</th>
                             </tr>
                         </thead>
                         <tbody id="ai-leaderboard-body">
@@ -440,7 +405,7 @@
                     </table>
                 </div>
             </section>
-        </div><!-- end CP08-stats -->
+        </div>
         </div><!-- end main-tab-stats -->
 
         <!-- ── History Tab ── -->
@@ -452,7 +417,7 @@
                 <p>No games played yet.</p>
             </div>
         </section>
-        </div><!-- end main-tab-history -->
+        </div>
 
     </div><!-- end game-section -->
 

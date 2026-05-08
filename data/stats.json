@@ -21,9 +21,9 @@
       "draws": 0
     },
     "ai": {
-      "wins": 511,
-      "losses": 330,
-      "draws": 828
+      "wins": 522,
+      "losses": 337,
+      "draws": 835
     },
     "ultimate": {
       "wins": 0,
@@ -31,9 +31,31 @@
       "draws": 0
     },
     "ultimate-ai": {
-      "wins": 104,
-      "losses": 52,
-      "draws": 28
+      "wins": 106,
+      "losses": 64,
+      "draws": 30
+    }
+  },
+  "2": {
+    "pvp": {
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
+    },
+    "ai": {
+      "wins": 12,
+      "losses": 14,
+      "draws": 12
+    },
+    "ultimate": {
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
+    },
+    "ultimate-ai": {
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
     }
   }
 }

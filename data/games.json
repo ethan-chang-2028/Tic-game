@@ -33978,5 +33978,320 @@
     "aiDifficulty": "medium",
     "aiPersonality": "neutral",
     "playedAt": "2026-05-08T02:39:47.765Z"
+  },
+  {
+    "id": 1778208009294,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-08T02:40:09.294Z"
+  },
+  {
+    "id": 1778208009658,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-08T02:40:09.658Z"
+  },
+  {
+    "id": 1778208022476,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "psychologist",
+    "playedAt": "2026-05-08T02:40:22.476Z"
+  },
+  {
+    "id": 1778208022695,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "mathematician",
+    "playedAt": "2026-05-08T02:40:22.695Z"
+  },
+  {
+    "id": 1778208034548,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "psychologist",
+    "playedAt": "2026-05-08T02:40:34.548Z"
+  },
+  {
+    "id": 1778208034901,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "mathematician",
+    "playedAt": "2026-05-08T02:40:34.901Z"
+  },
+  {
+    "id": 1778208046503,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "psychologist",
+    "playedAt": "2026-05-08T02:40:46.503Z"
+  },
+  {
+    "id": 1778208046750,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "mathematician",
+    "playedAt": "2026-05-08T02:40:46.750Z"
+  },
+  {
+    "id": 1778208056541,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "O wins",
+    "board": [
+      "X",
+      "",
+      "O",
+      "",
+      "O",
+      "",
+      "O",
+      "X",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "easy",
+    "aiPersonality": "mathematician",
+    "playedAt": "2026-05-08T02:40:56.541Z"
+  },
+  {
+    "id": 1778208056743,
+    "playedBy": "1",
+    "winner": "O",
+    "result": "O wins",
+    "board": [
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      ""
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "easy",
+    "aiPersonality": "neutral",
+    "playedAt": "2026-05-08T02:40:56.743Z"
+  },
+  {
+    "id": 1778208067484,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "O",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "psychologist",
+    "playedAt": "2026-05-08T02:41:07.484Z"
+  },
+  {
+    "id": 1778208067702,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "O",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "mathematician",
+    "playedAt": "2026-05-08T02:41:07.702Z"
+  },
+  {
+    "id": 1778208569254,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "psychologist",
+    "playedAt": "2026-05-08T02:49:29.254Z"
+  },
+  {
+    "id": 1778208569464,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "O",
+      "X",
+      "X",
+      "X",
+      "O",
+      "O",
+      "X",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "mathematician",
+    "playedAt": "2026-05-08T02:49:29.464Z"
+  },
+  {
+    "id": 1778208816201,
+    "playedBy": "1",
+    "winner": null,
+    "result": "draw",
+    "board": [
+      "O",
+      "X",
+      "O",
+      "X",
+      "X",
+      "O",
+      "X",
+      "O",
+      "X"
+    ],
+    "gameMode": "ai",
+    "aiDifficulty": "medium",
+    "aiPersonality": "psychologist",
+    "playedAt": "2026-05-08T02:53:36.201Z"
   }
 ]

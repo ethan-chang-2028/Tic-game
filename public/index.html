@@ -401,8 +401,20 @@
 
     <!-- GAME -->
     <div id="game-section" style="display: none;">
-        <h2 id="welcome-message"></h2>
-        <button onclick="logout()">Log Out</button>
+        <div class="top-bar">
+            <h2 id="welcome-message"></h2>
+            <button onclick="logout()" class="logout-btn">Log Out</button>
+        </div>
+
+        <!-- ── Main Tabs ── -->
+        <div class="main-tabs">
+            <button class="main-tab-btn active" onclick="showMainTab('game')" id="tab-btn-game">🎮 Game</button>
+            <button class="main-tab-btn" onclick="showMainTab('stats')" id="tab-btn-stats">📊 Stats</button>
+            <button class="main-tab-btn" onclick="showMainTab('history')" id="tab-btn-history">📜 History</button>
+        </div>
+
+        <!-- ── Game Tab ── -->
+        <div id="main-tab-game" class="main-tab-panel">
 
         <div id="CP07-levels">
             <div id="game-mode-section">
@@ -651,6 +663,10 @@
 
         <button id="reset-btn" onclick="resetGame()">New Game</button>
 
+        </div><!-- end main-tab-game -->
+
+        <!-- ── Stats Tab ── -->
+        <div id="main-tab-stats" class="main-tab-panel" style="display:none">
         <!-- CP08-stats: Global Stats and Leaderboards -->
         <div id="CP08-stats">
             <div class="stats-header">
@@ -799,9 +815,11 @@
                     </table>
                 </div>
             </section>
-        </div>
+        </div><!-- end CP08-stats -->
+        </div><!-- end main-tab-stats -->
 
-        <!-- HISTORY -->
+        <!-- ── History Tab ── -->
+        <div id="main-tab-history" class="main-tab-panel" style="display:none">
         <section id="history-section">
             <h3>Your Game History</h3>
             <button id="clear-history-btn" onclick="clearHistory()">Clear History</button>
@@ -809,7 +827,9 @@
                 <p>No games played yet.</p>
             </div>
         </section>
-    </div>
+        </div><!-- end main-tab-history -->
+
+    </div><!-- end game-section -->
 
     <script src="main.js"></script>
 </body>

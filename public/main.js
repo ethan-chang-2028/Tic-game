@@ -45,6 +45,18 @@ let tournament = {
     currentMatchAIPlayer: null
 };
 
+// ── Tab system ─────────────────────────────────────────────
+function showMainTab(name) {
+    ['game', 'stats', 'history'].forEach(t => {
+        const panel = document.getElementById('main-tab-' + t);
+        const btn   = document.getElementById('tab-btn-' + t);
+        if (panel) panel.style.display = t === name ? '' : 'none';
+        if (btn)   btn.classList.toggle('active', t === name);
+    });
+    if (name === 'stats')   refreshAllStats();
+    if (name === 'history') loadHistory();
+}
+
 const WIN_COMBOS = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
     [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
@@ -494,6 +506,7 @@ function handleSmallCellClick(e) {
     if (tournament.active) {
         // Block if AI vs AI (auto)
         if (tournament.aiX && tournament.aiO) return;
+        if (!tournament.currentMatchPlayers) return; // safety: no match in progress
         // Block if it's the AI player's turn
         const aiPlayer = tournament.currentMatchAIPlayer;
         if (aiPlayer && tournament.currentMatchPlayers) {
@@ -856,26 +869,55 @@ function displayTournament() {
 
 // IMPROVED: Generate HTML for group stage with better visualization
 function generateGroupStageHTML() {
-    const group = tournament.groups[tournament.currentGroupIndex];
+    // During tiebreaker, highlight and show matches for the group being tiebroken
+    const displayGroupIndex = (tournament.stage === 'tiebreaker' && tournament.pendingTiebreaker)
+        ? tournament.pendingTiebreaker.groupIndex
+        : tournament.currentGroupIndex;
+    const group = tournament.groups[displayGroupIndex];
     const matches = group.matches;
     let html = '<div class="group-stage-display">';
     
     // Show all groups summary
     for (let g = 0; g < tournament.groups.length; g++) {
         const gGroup = tournament.groups[g];
-        html += `<div class="tournament-group ${g === tournament.currentGroupIndex ? 'active' : ''}">`;
+        html += `<div class="tournament-group ${g === displayGroupIndex ? 'active' : ''}">`;
         html += `<h4>Group ${g + 1}</h4>`;
         
         // Show group standings
         if (tournament.groupResults[g] && tournament.groupResults[g].length > 0) {
+            // Check if this group is the active tiebreaker group
+            const activeTB = (tournament.stage === 'tiebreaker' && tournament.pendingTiebreaker &&
+                              tournament.pendingTiebreaker.groupIndex === g)
+                             ? tournament.pendingTiebreaker : null;
+            const tbScoresForGroup = activeTB ? (activeTB.scores || {}) : null;
+            const tbPlayerIds = activeTB ? (activeTB.tiedPlayers || []).map(p => p.id) : [];
+            const originalTiedIds = activeTB ? (activeTB.originalTiedIds || tbPlayerIds) : [];
+
+            // Sort: by points then wins then draws; tiebreaker players additionally sorted by TB score
+            const sortedResults = [...tournament.groupResults[g]].sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                if (b.wins !== a.wins) return b.wins - a.wins;
+                if (tbScoresForGroup && originalTiedIds.includes(a.id) && originalTiedIds.includes(b.id)) {
+                    return (tbScoresForGroup[b.id] || 0) - (tbScoresForGroup[a.id] || 0);
+                }
+                return b.draws - a.draws;
+            });
+
             html += '<table class="group-standings">';
-            html += '<tr><th>Rank</th><th>Player</th><th>Type</th><th>W</th><th>L</th><th>D</th><th>Pts</th></tr>';
-            const sortedResults = [...tournament.groupResults[g]].sort((a, b) => b.points - a.points);
+            const showTBCol = activeTB !== null;
+            html += '<tr><th>Rank</th><th>Player</th><th>Type</th><th>W</th><th>L</th><th>D</th><th>Pts</th>' +
+                    (showTBCol ? '<th>TB⚡</th>' : '') + '</tr>';
             sortedResults.forEach((result, idx) => {
                 const playerObj = gGroup.players.find(p => p.id === result.id);
                 const aiIndicator = playerObj?.type === 'ai' ? 'AI' : 'Human';
-                const aiDetails = '';
-                html += `<tr><td>${idx + 1}</td><td>${result.name}</td><td>${aiIndicator}</td><td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td></tr>`;
+                const inTB = tbPlayerIds.includes(result.id);
+                const tbScore = showTBCol ? (tbScoresForGroup?.[result.id] ?? (inTB ? 0 : '—')) : null;
+                const rowStyle = inTB ? 'background:#fff8e1;font-weight:600' : '';
+                html += `<tr style="${rowStyle}">` +
+                    `<td>${idx + 1}</td><td>${result.name}</td><td>${aiIndicator}</td>` +
+                    `<td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td>` +
+                    (showTBCol ? `<td>${tbScore}</td>` : '') +
+                    `</tr>`;
             });
             html += '</table>';
         }
@@ -884,9 +926,31 @@ function generateGroupStageHTML() {
     
     html += '</div>';
     
-    // Show current group matches
+    // Show current group matches (or tiebreaker matches if in tiebreaker stage)
     html += '<div class="current-group-matches">';
-    html += `<h4>Current Group ${tournament.currentGroupIndex + 1} Matches</h4>`;
+    const isTiebreaker = tournament.stage === 'tiebreaker' && tournament.pendingTiebreaker;
+    const tbMatches = isTiebreaker ? (tournament.pendingTiebreaker.matches || []) : null;
+    if (isTiebreaker) {
+        html += `<h4>Tiebreaker Matches — Group ${displayGroupIndex + 1}</h4>`;
+        html += '<table class="match-list">';
+        html += '<tr><th>Match</th><th>Player 1</th><th>vs</th><th>Player 2</th><th>Result</th></tr>';
+        tbMatches.forEach((match, idx) => {
+            const isCurrent = idx === tournament.pendingTiebreaker.matchIndex;
+            const resultText = match.completed
+                ? (match.winner === null ? 'Draw' : match.winner.name + ' wins')
+                : (isCurrent ? '▶ Playing' : '');
+            html += `<tr class="${isCurrent ? 'current-match' : ''}">`;
+            html += `<td>${idx + 1}</td>`;
+            html += `<td>${match.p1.name}${isCurrent ? ' *' : ''}</td>`;
+            html += `<td>vs</td>`;
+            html += `<td>${match.p2.name}${isCurrent ? ' *' : ''}</td>`;
+            html += `<td>${resultText}</td>`;
+            html += `</tr>`;
+        });
+        html += '</table>';
+        html += '</div>';
+    } else {
+    html += `<h4>Current Group ${displayGroupIndex + 1} Matches</h4>`;
     html += '<table class="match-list">';
     html += '<tr><th>Match</th><th>Player 1</th><th>vs</th><th>Player 2</th><th>Result</th></tr>';
     
@@ -894,7 +958,9 @@ function generateGroupStageHTML() {
         const player1 = group.players.find(p => p.id === match.player1);
         const player2 = group.players.find(p => p.id === match.player2);
         const isCurrent = idx === tournament.currentGroupMatch;
-        const resultText = match.completed ? (match.winner === null ? 'Draw' : (match.winner === match.player1 ? 'W' : 'L')) : '';
+        const resultText = match.completed
+            ? (match.winner === null ? 'Draw' : (match.winner === match.player1 ? 'W' : 'L'))
+            : '';
         
         const p1Details = '';
         const p2Details = '';
@@ -910,7 +976,63 @@ function generateGroupStageHTML() {
     
     html += '</table>';
     html += '</div>';
-    
+    } // end else (non-tiebreaker match list)
+
+    // ── Live Tiebreaker Standings Panel ────────────────────────────────────
+    if (isTiebreaker && tournament.pendingTiebreaker) {
+        const tb2 = tournament.pendingTiebreaker;
+        const g2 = tb2.groupIndex;
+        const tbPlayers = tb2.tiedPlayers || [];
+        const tbScores = tb2.scores || {};
+
+        // Get all group results to show full picture: clearlyTop + tiedPlayers
+        const gResults2 = tournament.groupResults[g2] || [];
+        const sortedGR = [...gResults2].sort((a, b) =>
+            b.points - a.points || b.wins - a.wins || b.draws - a.draws);
+
+        // Identify players NOT in the tiebreaker (already qualified)
+        const originalTiedIds = tb2.originalTiedIds || tbPlayers.map(p => p.id);
+        const alreadyQualified = sortedGR.filter(r => !originalTiedIds.includes(r.id));
+        const totalSpots = tb2.totalSpotsAvailable || tb2.spotsAvailable || 1;
+        const spotsStillFighting = tb2.spotsAvailable || 1;
+
+        html += '<div class="tb-standings-panel">';
+        html += `<h4 class="tb-standings-title">🔥 Tiebreaker Standings — Group ${g2 + 1}</h4>`;
+        html += `<p class="tb-standings-sub">${spotsStillFighting} spot${spotsStillFighting > 1 ? 's' : ''} available · Round ${tb2.round || 1}</p>`;
+        html += '<table class="tb-standings-table">';
+        html += '<tr><th>Pos</th><th>Player</th><th>TB Wins</th><th>Group Pts</th><th>Status</th></tr>';
+
+        let pos = 1;
+
+        // Already-qualified players (above the tie)
+        alreadyQualified.slice(0, 2 - totalSpots).forEach(r => {
+            html += `<tr class="tb-row-qualified">
+                <td>${pos++}</td><td>${r.name}</td>
+                <td>—</td><td>${r.points}</td>
+                <td>✅ Qualified</td></tr>`;
+        });
+
+        // Tiebreaker players sorted by current TB score
+        const tbSorted = [...tbPlayers].sort((a, b) => (tbScores[b.id] || 0) - (tbScores[a.id] || 0));
+        const banked = tb2.bankedAdvancers || [];
+        tbSorted.forEach((p, i) => {
+            const isAdvancing = banked.includes(p.id);
+            const tbW = tbScores[p.id] || 0;
+            const grRes = gResults2.find(r => r.id === p.id);
+            const isTop = i < spotsStillFighting && !isAdvancing;
+            const rowCls = isAdvancing ? 'tb-row-advancing' : isTop ? 'tb-row-leading' : 'tb-row-fighting';
+            const statusText = isAdvancing ? '✅ Advancing' : isTop ? '🟢 In lead' : '🔴 Behind';
+            html += `<tr class="${rowCls}">
+                <td>${pos++}</td><td>${p.name}</td>
+                <td>${tbW}</td><td>${grRes ? grRes.points : '—'}</td>
+                <td>${statusText}</td></tr>`;
+        });
+
+        html += '</table>';
+        html += '<p class="tb-note">Tiebreaker uses round-robin mini-tournament. Most wins advances.</p>';
+        html += '</div>';
+    }
+
     return html;
 }
 
@@ -1018,16 +1140,100 @@ function generateKnockoutBracketHTML() {
 
 function generateTournamentResultsHTML() {
     let html = '<div class="tournament-results"><h3>🏆 Tournament Final Results</h3>';
-    const winner = tournament.players.find(p => p.wins === Math.max(...tournament.players.map(p => p.wins)));
-    if (winner) {
-        html += `<div class="tournament-winner">🏆 <strong>${winner.name}</strong> is the Tournament Champion! 🏆</div>`;
+
+    // Find champion from the actual final match winner
+    let champion = null;
+    const bracket = tournament.knockoutBracket;
+    if (bracket && bracket.length > 0) {
+        const finalMatch = bracket[bracket.length - 1]?.[0];
+        if (finalMatch && finalMatch.completed && finalMatch.winner) {
+            champion = tournament.players.find(p => p.id === finalMatch.winner);
+        }
     }
-    html += '<table class="final-standings"><tr><th>Rank</th><th>Player</th><th>Type</th><th>Wins</th><th>Losses</th><th>Draws</th><th>Points</th></tr>';
-    const sortedPlayers = [...tournament.players].sort((a, b) => b.points - a.points || b.wins - a.wins);
-    sortedPlayers.forEach((player, idx) => {
-        html += `<tr><td>${idx + 1}</td><td>${player.name}</td><td>${player.type === 'ai' ? 'AI' : 'Human'}</td><td>${player.wins}</td><td>${player.losses}</td><td>${player.draws}</td><td>${player.points}</td></tr>`;
+    if (champion) {
+        html += `<div class="tournament-winner">🏆 <strong>${champion.name}</strong> is the Tournament Champion! 🏆</div>`;
+    }
+
+    // ── Group Stage Standings ──────────────────────────────────────────────
+    html += '<h4 style="margin:20px 0 8px;color:#555">Group Stage Final Standings</h4>';
+    for (let g = 0; g < tournament.groups.length; g++) {
+        const groupResults = tournament.groupResults[g] || [];
+        if (groupResults.length === 0) continue;
+        html += `<div style="margin-bottom:12px"><strong>Group ${g + 1}</strong>`;
+        html += '<table class="final-standings" style="margin-top:4px">';
+        html += '<tr><th>Rank</th><th>Player</th><th>W</th><th>L</th><th>D</th><th>Pts</th><th>Advanced</th></tr>';
+        const sorted = [...groupResults].sort((a, b) =>
+            b.points - a.points || b.wins - a.wins || b.draws - a.draws);
+        const tw = tournament.tiebreakerWinners || {};
+        const advancedIds = tw[g]
+            ? tw[g]
+            : sorted.slice(0, 2).map(r => r.id);
+        sorted.forEach((result, idx) => {
+            const advanced = advancedIds.includes(result.id);
+            const rowStyle = advanced ? 'background:#e8f5e9;font-weight:600' : '';
+            html += `<tr style="${rowStyle}"><td>${idx + 1}</td><td>${result.name}</td><td>${result.wins}</td><td>${result.losses}</td><td>${result.draws}</td><td>${result.points}</td><td>${advanced ? '✅' : ''}</td></tr>`;
+        });
+        html += '</table>';
+
+        // ── Tiebreaker sub-standings (if this group had one) ──
+        // Find tiebreaker info stored on pendingTiebreaker history — we save it below
+        const tbHistory = tournament.tiebreakerHistory?.[g];
+        if (tbHistory) {
+            html += `<div style="margin-top:6px;margin-left:12px">`;
+            html += `<em style="font-size:12px;color:#888">Tiebreaker results (Group ${g + 1}):</em>`;
+            html += '<table class="final-standings" style="margin-top:2px;font-size:12px">';
+            html += '<tr><th>Player</th><th>TB Wins</th><th>TB Draws</th><th>Advanced</th></tr>';
+            const tbSorted = [...tbHistory.players].sort((a, b) =>
+                (tbHistory.scores[b.id] || 0) - (tbHistory.scores[a.id] || 0));
+            tbSorted.forEach(p => {
+                const tbWins = tbHistory.scores[p.id] || 0;
+                const advanced = advancedIds.includes(p.id);
+                html += `<tr style="${advanced ? 'background:#e8f5e9;font-weight:600' : ''}"><td>${p.name}</td><td>${tbWins}</td><td>-</td><td>${advanced ? '✅' : ''}</td></tr>`;
+            });
+            html += '</table></div>';
+        }
+        html += '</div>';
+    }
+
+    // ── Knockout Stage Full Standings ──────────────────────────────────────
+    html += '<h4 style="margin:20px 0 8px;color:#555">Knockout Stage Results</h4>';
+    html += '<table class="final-standings">';
+    html += '<tr><th>Rank</th><th>Player</th><th>Type</th><th>Group Wins</th><th>Group Pts</th><th>KO Wins</th></tr>';
+
+    // Reconstruct knockout results: track who was eliminated in which round
+    const allKOPlayers = [];
+    const koWinCounts = {};
+    if (bracket) {
+        bracket.forEach((round, rIdx) => {
+            round.forEach(match => {
+                if (!match.completed) return;
+                const winnerId = match.winner;
+                const p1 = typeof match.player1 === 'object' ? match.player1 : tournament.players.find(p => p.id === match.player1);
+                const p2 = typeof match.player2 === 'object' ? match.player2 : tournament.players.find(p => p.id === match.player2);
+                const loserId = (p1 && p1.id === winnerId) ? (p2 ? p2.id : null) : (p1 ? p1.id : null);
+                koWinCounts[winnerId] = (koWinCounts[winnerId] || 0) + 1;
+                if (loserId && !allKOPlayers.find(x => x.id === loserId)) {
+                    const loser = tournament.players.find(p => p.id === loserId);
+                    if (loser) allKOPlayers.push({ player: loser, eliminatedRound: rIdx, koWins: 0 });
+                }
+            });
+        });
+    }
+    // Add champion last
+    if (champion) allKOPlayers.push({ player: champion, eliminatedRound: 9999, koWins: 0 });
+    // Sort: champion first, then by elimination round desc
+    allKOPlayers.sort((a, b) => b.eliminatedRound - a.eliminatedRound);
+    allKOPlayers.forEach((entry, idx) => {
+        const p = entry.player;
+        const grResults = (tournament.groupResults || []).flat().find(r => r.id === p.id);
+        const grWins = grResults ? grResults.wins : 0;
+        const grPts = grResults ? grResults.points : 0;
+        const koW = koWinCounts[p.id] || 0;
+        const isChamp = p.id === champion?.id;
+        html += `<tr style="${isChamp ? 'background:#fff9c4;font-weight:700' : ''}"><td>${idx + 1}</td><td>${p.name}${isChamp ? ' 🏆' : ''}</td><td>${p.type === 'ai' ? 'AI' : 'Human'}</td><td>${grWins}</td><td>${grPts}</td><td>${koW}</td></tr>`;
     });
-    html += '</table></div>';
+    html += '</table>';
+    html += '</div>';
     return html;
 }
 
@@ -1097,36 +1303,38 @@ function recordAndNextTournamentMatch(winnerSymbol) {
         const tb = tournament.pendingTiebreaker;
         if (!tb) return;
         const match = tb.matches[tb.matchIndex];
-        match.completed = true;
-        match.winner = matchWinner;
 
         if (matchWinner === null) {
-            // Draw in tiebreaker: allow up to 2 rematches, then count as a draw and move on
+            // Draw in tiebreaker: allow 1 rematch (drawCount 1→2), then force-resolve
             match.drawCount = (match.drawCount || 0) + 1;
-            const tbDmp1 = tournament.players.find(p => p.id === player1.id) || player1;
-            const tbDmp2 = tournament.players.find(p => p.id === player2.id) || player2;
-            if (match.drawCount >= 2) {
-                // Count as completed draw — move on
-                match.completed = true;
-                match.winner = null;
-                tbDmp1.draws++; tbDmp2.draws++;
-            } else {
-                // Rematch
+
+            if (match.drawCount < 2) {
+                // First draw — one rematch allowed, do NOT mutate master player stats
                 match.completed = false;
                 match.winner = null;
-                tbDmp1.draws++; tbDmp2.draws++;
+                tournament.aiX = null; tournament.aiO = null;
+                displayTournament();
+                setTimeout(() => startTiebreakerMatch(), 500);
+                return;
             }
+
+            // Second draw — count this match as a completed draw (no tiebreaker score awarded)
+            // Do NOT mutate master player wins/losses/draws for tiebreaker matches
+            match.completed = true;
+            match.winner = null;
+            tb.matchIndex++; // ← CRITICAL: advance past this match to prevent infinite loop
             tournament.aiX = null; tournament.aiO = null;
             displayTournament();
             setTimeout(() => startTiebreakerMatch(), 500);
             return;
         }
 
+        match.completed = true;
+        match.winner = matchWinner;
+
+        // Only update tiebreaker scores — do NOT mutate master player wins/losses
+        // (prevents tiebreaker results from polluting group stage standings)
         tb.scores[matchWinner] = (tb.scores[matchWinner] || 0) + 1;
-        const tbMp1 = tournament.players.find(p => p.id === player1.id) || player1;
-        const tbMp2 = tournament.players.find(p => p.id === player2.id) || player2;
-        if (matchWinner === player1.id) { tbMp1.wins++; tbMp2.losses++; }
-        else { tbMp2.wins++; tbMp1.losses++; }
         tb.matchIndex++;
         tournament.aiX = null; tournament.aiO = null;
         displayTournament();
@@ -1135,9 +1343,7 @@ function recordAndNextTournamentMatch(winnerSymbol) {
     } else if (tournament.stage === 'group') {
         const group = tournament.groups[tournament.currentGroupIndex];
         const currentMatch = group.matches[tournament.currentGroupMatch];
-        currentMatch.winner = matchWinner; 
-        currentMatch.completed = true;
-        
+
         if (!tournament.groupResults[tournament.currentGroupIndex]) {
             tournament.groupResults[tournament.currentGroupIndex] = [];
         }
@@ -1150,15 +1356,27 @@ function recordAndNextTournamentMatch(winnerSymbol) {
         // groupResults entries ARE the master objects — push reference if not present
         if (!groupResults.find(r => r.id === mp1.id)) groupResults.push(mp1);
         if (!groupResults.find(r => r.id === mp2.id)) groupResults.push(mp2);
-        
-        if (matchWinner === player1.id) {
-            mp1.wins++; mp2.losses++; mp1.points += 3;
-        } else if (matchWinner === player2.id) {
-            mp2.wins++; mp1.losses++; mp2.points += 3;
+
+        if (matchWinner === null) {
+            // DRAW in group stage: award 1 point each and complete — no rematch here.
+            // Rematches only happen at end of group stage if players are tied on points.
+            mp1.draws++; mp2.draws++;
+            mp1.points += 1; mp2.points += 1;
+            currentMatch.winner = null;
+            currentMatch.completed = true;
         } else {
-            mp1.draws++; mp2.draws++; mp1.points += 1; mp2.points += 1;
+            // Normal win
+            currentMatch.winner = matchWinner;
+            currentMatch.completed = true;
+            if (matchWinner === player1.id) {
+                mp1.wins++; mp2.losses++; mp1.points += 3;
+            } else {
+                mp2.wins++; mp1.losses++; mp2.points += 3;
+            }
         }
+
         tournament.currentGroupMatch++;
+
     } else if (tournament.stage === 'knockout') {
         const roundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound];
         const currentMatch = roundMatches[tournament.currentKnockoutMatch];
@@ -1166,14 +1384,55 @@ function recordAndNextTournamentMatch(winnerSymbol) {
         const mp1 = tournament.players.find(p => p.id === player1.id) || player1;
         const mp2 = tournament.players.find(p => p.id === player2.id) || player2;
 
-        // Draw in knockout = rematch: reset the match and replay it
         if (matchWinner === null) {
-            currentMatch.winner = null;
-            currentMatch.completed = false;
-            mp1.draws++;
-            mp2.draws++;
+            // Draw in knockout: track draw count; do NOT award points here (prevents inflation)
+            currentMatch.drawCount = (currentMatch.drawCount || 0) + 1;
+            mp1.draws++; mp2.draws++;
+
+            if (currentMatch.drawCount < 3) {
+                // Rematch
+                currentMatch.winner = null;
+                currentMatch.completed = false;
+                displayTournament();
+                document.getElementById('game-status').textContent =
+                    `Draw! Rematch ${currentMatch.drawCount}/3 — ${player1.name} vs ${player2.name}`;
+                tournament.aiX = null; tournament.aiO = null;
+                setTimeout(() => startNextKnockoutMatch(), 800);
+                return;
+            }
+
+            // 3 draws — decide by group-stage wins first, then random coin flip
+            let koWinner;
+            if (mp1.wins > mp2.wins) {
+                koWinner = mp1;
+            } else if (mp2.wins > mp1.wins) {
+                koWinner = mp2;
+            } else {
+                // Truly tied — random coin flip to advance
+                koWinner = Math.random() < 0.5 ? mp1 : mp2;
+                document.getElementById('game-status').textContent =
+                    `Still tied after 3 draws! ${koWinner.name} advances by coin flip.`;
+            }
+            currentMatch.winner = koWinner.id;
+            currentMatch.completed = true;
+            if (koWinner === mp1) { mp1.wins++; mp2.losses++; }
+            else { mp2.wins++; mp1.losses++; }
+
+            // Advance winner to next round slot
+            if (tournament.currentKnockoutRound + 1 < tournament.knockoutBracket.length) {
+                const nextRoundMatches = tournament.knockoutBracket[tournament.currentKnockoutRound + 1];
+                const nextMatchIndex = Math.floor(tournament.currentKnockoutMatch / 2);
+                if (nextRoundMatches[nextMatchIndex]) {
+                    if (tournament.currentKnockoutMatch % 2 === 0) {
+                        nextRoundMatches[nextMatchIndex].player1 = koWinner;
+                    } else {
+                        nextRoundMatches[nextMatchIndex].player2 = koWinner;
+                    }
+                }
+            }
+            tournament.currentKnockoutMatch++;
             displayTournament();
-            if (tournament.stage === 'knockout') startNextKnockoutMatch();
+            setTimeout(() => startNextKnockoutMatch(), 1200);
             return;
         }
 
@@ -1274,14 +1533,16 @@ function startNextGroupMatch() {
     } else if (p1IsAI) {
         // AI is player1 = X side; AI moves first
         tournament.currentMatchAIPlayer = player1;
+        tournament.aiX = null; tournament.aiO = null; // clear any stale AI vs AI flags
         currentPlayer = 'X';
-        document.getElementById('turn-indicator').textContent = `${player2.name}'s Turn`;
+        document.getElementById('turn-indicator').textContent = `${player1.name} is thinking...`;
         document.getElementById('game-status').textContent = `Group: ${player1.name} vs ${player2.name}`;
         displayTournament();
         setTimeout(() => makeTournamentAIMove(player1), 500);
     } else if (p2IsAI) {
         // AI is player2 = O side; human goes first
         tournament.currentMatchAIPlayer = player2;
+        tournament.aiX = null; tournament.aiO = null; // clear any stale AI vs AI flags
         currentPlayer = 'X';
         document.getElementById('turn-indicator').textContent = `${player1.name}'s Turn`;
         document.getElementById('game-status').textContent = `Group: ${player1.name} vs ${player2.name}`;
@@ -1289,6 +1550,7 @@ function startNextGroupMatch() {
     } else {
         // Human vs Human
         tournament.currentMatchAIPlayer = null;
+        tournament.aiX = null; tournament.aiO = null; // clear any stale AI vs AI flags
         document.getElementById('turn-indicator').textContent = `${player1.name}'s Turn`;
         document.getElementById('game-status').textContent = `Group: ${player1.name} vs ${player2.name}`;
         displayTournament();
@@ -1303,15 +1565,29 @@ function advanceToKnockoutStage() {
         if (tw[g]) continue; // already resolved
 
         const groupResults = tournament.groupResults[g] || [];
-        const sorted = [...groupResults].sort((a, b) => b.points - a.points);
+        const sorted = [...groupResults].sort((a, b) =>
+            b.points - a.points || b.wins - a.wins || b.draws - a.draws);
         if (sorted.length < 2) continue;
 
+        // Find the point threshold for the 2nd advancement spot.
+        // The top 2 advance. If sorted[1] ties with others below it on points+wins+draws,
+        // those players compete in a tiebreaker. If sorted[0] also ties, all tied compete.
         const secondPoints = sorted[1].points;
-        const tiedFor2nd = sorted.filter((r, i) => i >= 1 && r.points === secondPoints);
+        const secondWins   = sorted[1].wins;
+        const secondDraws  = sorted[1].draws;
+        // All players sharing the same points AND wins AND draws as whoever is in 2nd place
+        const tiedFor2nd = sorted.filter(r =>
+            r.points === secondPoints && r.wins === secondWins && r.draws === secondDraws);
 
-        if (tiedFor2nd.length > 1) {
+        // Tiebreaker only needed if more players share 2nd-place points than spots available
+        // Spots available at that tier = 2 minus the number of players who are clearly above it
+        const clearlyTop = sorted.filter(r => r.points > secondPoints).length;
+        const spotsForTier = 2 - clearlyTop; // how many of the tied players actually advance
+        if (tiedFor2nd.length > spotsForTier) {
             tournament.pendingTiebreaker = {
                 groupIndex: g,
+                spotsAvailable: spotsForTier,
+                totalSpotsAvailable: spotsForTier, // preserved across re-tiebreak rounds
                 tiedPlayers: tiedFor2nd.map(r => tournament.players.find(p => p.id === r.id)).filter(Boolean),
                 tiedPlayerIndex: 0
             };
@@ -1324,14 +1600,15 @@ function advanceToKnockoutStage() {
     const advancingPlayers = [];
     for (let g = 0; g < tournament.groups.length; g++) {
         if (tw[g]) {
-            // Use tiebreaker-determined advancement order
+            // tiebreakerWinners[g] is already the ordered list of advancing player IDs
             tw[g].forEach(id => {
                 const p = tournament.players.find(x => x.id === id);
                 if (p) advancingPlayers.push(p);
             });
         } else {
             const groupResults = tournament.groupResults[g] || [];
-            const sorted = [...groupResults].sort((a, b) => b.points - a.points);
+            const sorted = [...groupResults].sort((a, b) =>
+                b.points - a.points || b.wins - a.wins || b.draws - a.draws);
             sorted.slice(0, 2).forEach(result => {
                 const p = tournament.players.find(x => x.id === result.id);
                 if (p) advancingPlayers.push(p);
@@ -1357,9 +1634,12 @@ function startTiebreakerMatch() {
             }
         }
         tb.matchIndex = 0;
-        tb.scores = {};
         tb.round = (tb.round || 0) + 1;
-        players.forEach(p => { tb.scores[p.id] = 0; });
+        // Only initialise scores if not already set by re-tiebreak caller
+        if (!tb.scores) {
+            tb.scores = {};
+            players.forEach(p => { tb.scores[p.id] = 0; });
+        }
     }
 
     // Find next incomplete match
@@ -1368,43 +1648,87 @@ function startTiebreakerMatch() {
     }
 
     if (tb.matchIndex >= tb.matches.length) {
-        // All tiebreaker matches done — pick winner by score
+        // All tiebreaker matches done — pick winners by tiebreaker score
+        const spotsAvailable = tb.spotsAvailable || 1;
         const sortedByScore = [...players].sort((a, b) => (tb.scores[b.id] || 0) - (tb.scores[a.id] || 0));
-        const topScore = tb.scores[sortedByScore[0].id] || 0;
-        const stillTied = sortedByScore.filter(p => (tb.scores[p.id] || 0) === topScore);
+
+        // Players who were clearly above the tie in the group stage (not part of tiedPlayers).
+        // IMPORTANT: use the ORIGINAL tiedPlayers from when this tiebreaker was first created,
+        // not the current (possibly reduced) players list, so re-tiebreak rounds don't
+        // incorrectly re-admit players who already lost a tiebreaker round.
+        const g = tb.groupIndex;
+        const groupResults = tournament.groupResults[g] || [];
+        // originalTiedIds tracks who was in the very first tiebreaker pool for this group
+        const originalTiedIds = tb.originalTiedIds || players.map(p => p.id);
+        if (!tb.originalTiedIds) tb.originalTiedIds = originalTiedIds;
+
+        const sortedByGroupPoints = [...groupResults].sort((a, b) =>
+            b.points - a.points || b.wins - a.wins || b.draws - a.draws);
+        const clearGroupAdvancers = sortedByGroupPoints
+            .filter(r => !originalTiedIds.includes(r.id)) // not in the ORIGINAL tie group
+            .slice(0, 2 - tb.totalSpotsAvailable) // use total spots, not current round spots
+            .map(r => r.id);
+
+        // Find the score at the last advancing spot
+        const cutoffScore = tb.scores[sortedByScore[spotsAvailable - 1]?.id] ?? 0;
+
+        // Players at or below the cutoff index who share the cutoff score are still tied.
+        // Players clearly above (index < spotsAvailable - 1 AND score > cutoffScore) are done.
+        const clearlyAdvancing = sortedByScore.filter((p, i) =>
+            i < spotsAvailable - 1 && (tb.scores[p.id] || 0) > cutoffScore
+        );
+        const stillTied = sortedByScore.filter(p =>
+            (tb.scores[p.id] || 0) === cutoffScore &&
+            !clearlyAdvancing.find(a => a.id === p.id)
+        );
 
         // If still tied after 2 tiebreaker rounds, resolve by random pick to prevent infinite loop
         if (stillTied.length > 1 && (tb.round || 1) >= 2) {
-            const tbWinner = stillTied[Math.floor(Math.random() * stillTied.length)];
-            const g = tb.groupIndex;
-            const groupResults = tournament.groupResults[g];
-            const sorted = [...groupResults].sort((a, b) => b.points - a.points);
-            const firstId = sorted[0].id;
+            const shuffled = [...stillTied].sort(() => Math.random() - 0.5);
+            const tiebreakerAdvancers = [
+                ...clearlyAdvancing.map(p => p.id),
+                ...shuffled.slice(0, spotsAvailable - clearlyAdvancing.length).map(p => p.id)
+            ];
+            // Save tiebreaker history for results display
+            tournament.tiebreakerHistory = tournament.tiebreakerHistory || {};
+            tournament.tiebreakerHistory[g] = { players: tb.tiedPlayers, scores: tb.scores };
             tournament.pendingTiebreaker = null;
             tournament.tiebreakerWinners = tournament.tiebreakerWinners || {};
-            tournament.tiebreakerWinners[g] = [firstId, tbWinner.id];
+            tournament.tiebreakerWinners[g] = [...clearGroupAdvancers, ...tiebreakerAdvancers];
             advanceToKnockoutStage();
             return;
         }
 
-        // If still tied, run another tiebreaker round
+        // If still tied, run another tiebreaker round among just the still-tied players.
         if (stillTied.length > 1) {
-            tb.matches = null; // Reset matches for another round
+            const remainingSpots = spotsAvailable - clearlyAdvancing.length;
+            tb.bankedAdvancers = [...(tb.bankedAdvancers || []), ...clearlyAdvancing.map(p => p.id)];
+            tb.matches = null;           // force rebuild of match list for new player subset
             tb.tiedPlayers = stillTied;
+            tb.spotsAvailable = remainingSpots;
             tb.round = (tb.round || 1) + 1;
+            // Reset scores only for the new subset — fresh slate for this re-tiebreak round
+            tb.scores = {};
+            stillTied.forEach(p => { tb.scores[p.id] = 0; });
             startTiebreakerMatch();
             return;
         }
 
-        // Clear winner — resolve
-        const tbWinner = sortedByScore[0];
-        const g = tb.groupIndex;
-        const groupResults = tournament.groupResults[g];
-        const sorted = [...groupResults].sort((a, b) => b.points - a.points);
-        const firstId = sorted[0].id;
+        // Clear resolution — tiebreaker winners + clearly-top group players
+        const allBanked = tb.bankedAdvancers || [];
+        const tiebreakerAdvancers = [
+            ...allBanked,
+            ...clearlyAdvancing.map(p => p.id),
+            ...sortedByScore.slice(0, spotsAvailable).map(p => p.id).filter(id =>
+                !allBanked.includes(id) && !clearlyAdvancing.find(a => a.id === id)
+            )
+        ];
+        // Save tiebreaker history for results display
+        tournament.tiebreakerHistory = tournament.tiebreakerHistory || {};
+        tournament.tiebreakerHistory[g] = { players: tb.tiedPlayers, scores: tb.scores };
         tournament.pendingTiebreaker = null;
         tournament.tiebreakerWinners = tournament.tiebreakerWinners || {};
-        tournament.tiebreakerWinners[g] = [firstId, tbWinner.id];
+        tournament.tiebreakerWinners[g] = [...clearGroupAdvancers, ...tiebreakerAdvancers];
         advanceToKnockoutStage();
         return;
     }
@@ -1575,19 +1899,22 @@ function startNextKnockoutMatch() {
         setTimeout(() => runAIvsAIMove(), 400);
     } else if (p1IsAI) {
         tournament.currentMatchAIPlayer = player1Obj;
+        tournament.aiX = null; tournament.aiO = null; // clear any stale AI vs AI flags
         currentPlayer = 'X';
-        document.getElementById('turn-indicator').textContent = `${player2Obj.name}'s Turn`;
+        document.getElementById('turn-indicator').textContent = `${player1Obj.name} is thinking...`;
         document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
         displayTournament();
         setTimeout(() => makeTournamentAIMove(player1Obj), 500);
     } else if (p2IsAI) {
         tournament.currentMatchAIPlayer = player2Obj;
+        tournament.aiX = null; tournament.aiO = null; // clear any stale AI vs AI flags
         currentPlayer = 'X';
         document.getElementById('turn-indicator').textContent = `${player1Obj.name}'s Turn`;
         document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
         displayTournament();
     } else {
         tournament.currentMatchAIPlayer = null;
+        tournament.aiX = null; tournament.aiO = null; // clear any stale AI vs AI flags
         document.getElementById('turn-indicator').textContent = `${player1Obj.name}'s Turn`;
         document.getElementById('game-status').textContent = `Knockout: ${player1Obj.name} vs ${player2Obj.name}`;
         displayTournament();
@@ -1824,6 +2151,7 @@ function handleCellClick(e) {
     if (tournament.active) {
         const index = parseInt(e.target.getAttribute('data-index'));
         if (board[index] !== '' || gameOver) return;
+        if (!tournament.currentMatchPlayers) return; // safety: no match in progress
 
         // Block clicks if it's an AI turn or an AI vs AI match
         const isAIvsAI = tournament.aiX && tournament.aiO;
